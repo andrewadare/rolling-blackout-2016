@@ -21,9 +21,6 @@
 #define ENCODER_CH_A 3   // INT1/PD3
 #define ENCODER_CH_B 4   // T0/PD4
 
-// Number of encoder ticks per revolution of the sensor
-#define TICKS_PER_REV 3600
-
 LIDARLite lidar;
 Encoder encoder(ENCODER_CH_A, ENCODER_CH_B);
 
@@ -40,9 +37,9 @@ void loop()
 {
   if (!digitalRead(LIDAR_MODE_PIN))
   {
-    int angleTimes10 = encoder.read() % TICKS_PER_REV;
+    int ticks = encoder.read();
 
-    Serial.print(angleTimes10);
+    Serial.print(ticks);
     Serial.print(" ");
     Serial.println(lidar.distanceContinuous());
   }
