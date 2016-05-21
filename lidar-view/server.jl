@@ -98,7 +98,7 @@ function send_sensor_data(client::WebSockets.WebSocket)
     sleep(1)
 
     # Empirically-determined period of rangefinder encoder (ticks/rev)
-    T = 600
+    T = 369
 
     # Streaming data has columns described by these two labels
     keys = ["enc", "rcm"]
@@ -117,7 +117,7 @@ function send_sensor_data(client::WebSockets.WebSocket)
 
         if keys_ok
 
-            d["phi"] = 2*pi/T * (d["enc"] % T)
+            d["phi"] = 2*pi/T * d["enc"]
 
             send_json("sensor_data", d, client)
         else

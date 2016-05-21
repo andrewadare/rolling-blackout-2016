@@ -104,7 +104,7 @@
       case 'sensor_data':
         sensorData.push( msg.data );
         drawData( sensorData );
-        if ( sensorData.length > 150 ) {
+        if ( sensorData.length > 20 ) {
           sensorData.shift();
         }
         break;
