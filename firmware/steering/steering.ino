@@ -10,6 +10,11 @@
 #define ENABLE_PIN 5  // Asserted low (connected to stepper driver)
 #define POT_PIN   A0  // Pin to read voltage from potentiometer
 
+#define PI                 3.14159265358979
+#define RAD_PER_DEG        PI/180
+#define MAX_STEERING_ANGLE PI/6  // Built-in steering limit of front wheels
+#define MAX_HEADING_CHANGE 0.281 // [rad] at max steering angle
+
 // A4 and A5 are also used as the I2C data and clock lines for the BNO055 board.
 
 // Number of steps taken by motor after a command is issued.
@@ -21,11 +26,14 @@ byte incomingByte = 0;
 // Digitized reading from potentiometer (running average - see ewma() below)
 unsigned int angleADC = 0;
 
+// Continuously-updated azimuthal bearing of vehicle in radians.
+float vehicleHeading = 0;
+
 // Steering angle and limits. Orientation follows that of IMU sensor (positive
-// clockwise). Since map() uses integer math, the limits (+/- 30 deg) are
-// represented as integral units of 0.01 degree to limit loss of precision.
-int leftSteerMax = -3000;
-int rightSteerMax = 3000;
+// clockwise). Since map() uses integer math, the limits (+/-30 deg = pi/6) are
+// represented as integral units of 1e-4 rad to limit loss of precision.
+int leftSteerMax = -MAX_STEERING_ANGLE * 1e4;
+int rightSteerMax = MAX_STEERING_ANGLE * 1e4;
 float steerAngle = 0;
 
 // Steering angle limits as ADC readings. Empirically determined.
@@ -54,6 +62,31 @@ void ewma(unsigned int x, unsigned int &x8)
   // multiplied through by 8 to avoid precision loss from int division:
   // 8*xavg = x + 8*xavg - (8*xavg - 8/2)/8
   x8 = x + x8 - ((x8 - 4) >> 3);
+}
+
+// Compute steering angle from target vehicle heading, given the current heading.
+// Angles should be in radians, increasing CW from north = 0.
+float targetSteerAngle(float targetHeading)
+{
+  // Angle of velocity vector from vehicle centerline at CM. L < 0; R > 0.
+  float a = targetHeading - vehicleHeading;
+
+  // Define target velocity angle inside a range of -pi to pi
+  a = (a < -PI) ? a + 2*PI : (a > PI) ? a - 2*PI : a;
+
+  if (a > MAX_HEADING_CHANGE)
+  {
+    return MAX_STEERING_ANGLE;
+  }
+
+  if (a < -MAX_HEADING_CHANGE)
+  {
+    return -MAX_STEERING_ANGLE;
+  }
+
+  // Steering angle delta from steering model: delta = atan(2*tan(a)).
+  // Taylor expansion to cubic order used instead (good to 1% in worst case).
+  return 2*a*(1 - a*a);
 }
 
 void setup()
@@ -101,18 +134,24 @@ void loop()
     // Timestamp of current step
     Serial.print(prevTime);
 
-    // Azimuthal bearing [deg]
+    // Current azimuthal heading [rad]
+    vehicleHeading = imu.readEulerHeading() * RAD_PER_DEG;
     Serial.print(" H: ");
-    Serial.print(imu.readEulerHeading());
+    Serial.print(vehicleHeading);
 
     // Digitized voltage drop on turnpot
     Serial.print(" ADC: ");
     ewma(analogRead(POT_PIN), angleADC);
     Serial.print(angleADC >> 3);
 
-    // Computed steering angle [deg]
-    steerAngle = 0.01 * map(angleADC >> 3, leftADC, rightADC, leftSteerMax, rightSteerMax);
+    // Current steering angle of front wheels [rad]
+    steerAngle = 1e-4 * map(angleADC >> 3, leftADC, rightADC, leftSteerMax, rightSteerMax);
     Serial.print(" ");
-    Serial.println(steerAngle);
+    Serial.print(steerAngle);
+
+    // Target steering angle for a vehicle heading of due north
+    Serial.print(" ");
+    Serial.println(targetSteerAngle(0.0));
   }
+
 }
