@@ -18,7 +18,7 @@ volatile unsigned long steps = 0;
 // For incoming serial data
 byte incomingByte = 0;
 
-// Digitized reading from potentiometer
+// Digitized reading from potentiometer (running average - see ewma() below)
 unsigned int angleADC = 0;
 
 // Steering angle and limits. Orientation follows that of IMU sensor (positive
@@ -43,6 +43,17 @@ NAxisMotion imu;
 void count()
 {
   steps++;
+}
+
+// Exponentially weighted moving average for integer data. Used for over-
+// sampling noisy ADC measurements in a time series. 'Stir in' x to x8.
+// When using the result, it must be divided by 8: x8 >> 3.
+void ewma(unsigned int x, unsigned int &x8)
+{
+  // Compute weights like 1/8*(current x) + 7/8*(prev running avg x), except
+  // multiplied through by 8 to avoid precision loss from int division:
+  // 8*xavg = x + 8*xavg - (8*xavg - 8/2)/8
+  x8 = x + x8 - ((x8 - 4) >> 3);
 }
 
 void setup()
@@ -85,7 +96,7 @@ void loop()
 
     // Update Euler angle measurements and sensor calibration status
     imu.updateEuler();
-    imu.updateCalibStatus();
+    imu.updateCalibStatus(); // TODO: print warning when not ready
 
     // Timestamp of current step
     Serial.print(prevTime);
@@ -96,11 +107,11 @@ void loop()
 
     // Digitized voltage drop on turnpot
     Serial.print(" ADC: ");
-    angleADC = analogRead(POT_PIN);
-    Serial.print(angleADC);
+    ewma(analogRead(POT_PIN), angleADC);
+    Serial.print(angleADC >> 3);
 
     // Computed steering angle [deg]
-    steerAngle = 0.01 * map(angleADC, leftADC, rightADC, leftSteerMax, rightSteerMax);
+    steerAngle = 0.01 * map(angleADC >> 3, leftADC, rightADC, leftSteerMax, rightSteerMax);
     Serial.print(" ");
     Serial.println(steerAngle);
   }
