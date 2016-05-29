@@ -37,8 +37,8 @@ int rightSteerMax = MAX_STEERING_ANGLE * 1e4;
 float steerAngle = 0;
 
 // Steering angle limits as ADC readings. Empirically determined.
-int leftADC = 577;
-int rightADC = 254;
+int maxLeftADC = 577;
+int maxRightADC = 254;
 
 // Timestamp of previous update step and update interval in ms
 unsigned long prevTime = 0;
@@ -145,7 +145,7 @@ void loop()
     Serial.print(angleADC >> 3);
 
     // Current steering angle of front wheels [rad]
-    steerAngle = 1e-4 * map(angleADC >> 3, leftADC, rightADC, leftSteerMax, rightSteerMax);
+    steerAngle = 1e-4 * map(angleADC >> 3, maxLeftADC, maxRightADC, leftSteerMax, rightSteerMax);
     Serial.print(" ");
     Serial.print(steerAngle);
 
