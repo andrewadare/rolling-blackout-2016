@@ -40,12 +40,18 @@ float steerAngle = 0;
 int maxLeftADC = 577;
 int maxRightADC = 254;
 
-// Timestamp of previous update step and update interval in ms
-unsigned long prevTime = 0;
+// Time of update step and length of update interval in ms
+unsigned long timeMarker = 0;
 const unsigned long dt = 20;
 
 // Interface class instance for BNO055 sensor
 NAxisMotion imu;
+
+// Sensor calibration status values 0 - 3
+byte accCalStatus = 0;
+byte gyrCalStatus = 0;
+byte magCalStatus = 0;
+byte sysCalStatus = 0;
 
 // Pin-change interrupt callback - increment step counter
 void count()
@@ -89,9 +95,45 @@ float targetSteerAngle(float targetHeading)
   return 2*a*(1 - a*a);
 }
 
+// Configure PWM output so that front wheels steer towards steerAngleSetpoint.
+// Intended to be called inside a loop.
+void steer(float steerAngleSetpoint, float tolerance = 0.01)
+{
+  float delta = steerAngleSetpoint - steerAngle;
+
+  // Validate inputs
+  if (abs(steerAngle + delta) > MAX_STEERING_ANGLE)
+  {
+    pinMode(STEP_PIN, INPUT);
+    return;
+  }
+
+  if (delta > tolerance)
+  {
+    // Steer right of current angle
+    pinMode(STEP_PIN, OUTPUT);
+    digitalWrite(DIR_PIN, LOW);
+  }
+
+  else if (delta < -tolerance)
+  {
+    // Steer left of current angle
+    pinMode(STEP_PIN, OUTPUT);
+    digitalWrite(DIR_PIN, HIGH);
+  }
+
+  else
+  {
+    // Hold the current steering angle.
+    // Disable timer output and reset stepper pulse counter
+    pinMode(STEP_PIN, INPUT);
+    steps = 0;
+  }
+}
+
 void setup()
 {
-  pinMode(STEP_PIN, OUTPUT);
+  pinMode(STEP_PIN, INPUT); // Don't enable steering motor yet
   pinMode(DIR_PIN, OUTPUT);
   // pinMode(11, OUTPUT); // Outputs 250 Hz square wave if enabled
 
@@ -123,16 +165,26 @@ void setup()
 void loop()
 {
 
-  if (millis() - prevTime >= dt)
+  if (millis() - timeMarker >= dt)
   {
-    prevTime = millis();
+    timeMarker = millis();
 
     // Update Euler angle measurements and sensor calibration status
     imu.updateEuler();
-    imu.updateCalibStatus(); // TODO: print warning when not ready
+    imu.updateCalibStatus();
+    accCalStatus = imu.readAccelCalibStatus();
+    gyrCalStatus = imu.readMagCalibStatus();
+    magCalStatus = imu.readGyroCalibStatus();
+    sysCalStatus = imu.readSystemCalibStatus();
 
-    // Timestamp of current step
-    Serial.print(prevTime);
+    // Time of current step (since boot)
+    Serial.print(timeMarker);
+
+    Serial.print(" AMGS: ");
+    Serial.print(accCalStatus);
+    Serial.print(gyrCalStatus);
+    Serial.print(magCalStatus);
+    Serial.print(sysCalStatus);
 
     // Current azimuthal heading [rad]
     vehicleHeading = imu.readEulerHeading() * RAD_PER_DEG;
@@ -146,12 +198,18 @@ void loop()
 
     // Current steering angle of front wheels [rad]
     steerAngle = 1e-4 * map(angleADC >> 3, maxLeftADC, maxRightADC, leftSteerMax, rightSteerMax);
-    Serial.print(" ");
+    Serial.print(" steerAngle: ");
     Serial.print(steerAngle);
 
     // Target steering angle for a vehicle heading of due north
-    Serial.print(" ");
-    Serial.println(targetSteerAngle(0.0));
+    Serial.print(" target: ");
+    Serial.print(targetSteerAngle(0.0));
+
+    // Steps taken by steering motor
+    Serial.print(" steps: ");
+    Serial.println(steps);
+
+    steer(targetSteerAngle(0.0));
   }
 
 }
