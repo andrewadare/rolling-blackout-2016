@@ -5,10 +5,10 @@
 #include "NAxisMotion.h"
 #include <Wire.h>
 
-#define STEP_PIN   3  // INT1/PD3/OC2B
-#define DIR_PIN    4  // Pin controlling rotation direction
-#define ENABLE_PIN 5  // Asserted low (connected to stepper driver)
-#define POT_PIN   A0  // Pin to read voltage from potentiometer
+#define STEP_PIN   3    // INT1/PD3/OC2B
+#define DIR_PIN    4    // Pin controlling rotation direction
+#define ENABLE_PIN 5    // Asserted low (connected to stepper driver)
+#define POT_PIN    A0   // Pin to read voltage from potentiometer
 
 #define PI                 3.14159265358979
 #define RAD_PER_DEG        PI/180
@@ -53,14 +53,15 @@ byte gyrCalStatus = 0;
 byte magCalStatus = 0;
 byte sysCalStatus = 0;
 
-// Pin-change interrupt callback - increment step counter
+// Pin-change interrupt callback to increment step counter (only called when
+// PWM output is enabled).
 void count()
 {
   steps++;
 }
 
-// Exponentially weighted moving average for integer data. Used for over-
-// sampling noisy ADC measurements in a time series. 'Stir in' x to x8.
+// Exponentially weighted moving averages for integer data. Used for over-
+// sampling noisy measurements in a time series.
 // When using the result, it must be divided by 8: x8 >> 3.
 void ewma(unsigned int x, unsigned int &x8)
 {
@@ -96,7 +97,7 @@ float targetSteerAngle(float targetHeading)
 }
 
 // Configure PWM output so that front wheels steer towards steerAngleSetpoint.
-// Intended to be called inside a loop.
+// Intended to be called inside a loop. Args in radians.
 void steer(float steerAngleSetpoint, float tolerance = 0.01)
 {
   float delta = steerAngleSetpoint - steerAngle;
@@ -164,7 +165,6 @@ void setup()
 
 void loop()
 {
-
   if (millis() - timeMarker >= dt)
   {
     timeMarker = millis();
@@ -198,18 +198,29 @@ void loop()
 
     // Current steering angle of front wheels [rad]
     steerAngle = 1e-4 * map(angleADC >> 3, maxLeftADC, maxRightADC, leftSteerMax, rightSteerMax);
-    Serial.print(" steerAngle: ");
+    Serial.print(" SA: ");
     Serial.print(steerAngle);
 
     // Target steering angle for a vehicle heading of due north
-    Serial.print(" target: ");
+    Serial.print(" ST: ");
     Serial.print(targetSteerAngle(0.0));
 
-    // Steps taken by steering motor
+    // Output pulse count. Only corresponds to pulses sent to driver if STEP_PIN
+    // is in output mode.
     Serial.print(" steps: ");
-    Serial.println(steps);
+    Serial.print(steps);
 
-    steer(targetSteerAngle(0.0));
+    // To avoid wild driving, don't send motor pulses if IMU isn't at least
+    // minimally calibrated.
+    if (sysCalStatus > 0)
+    {
+      Serial.println();
+      steer(targetSteerAngle(0.0), 0.04); // Head north, 2.3 degree deadband
+    }
+    else
+    {
+      Serial.println(" skip");
+      pinMode(STEP_PIN, INPUT);
+    }
   }
-
 }
