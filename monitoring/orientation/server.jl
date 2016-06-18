@@ -169,10 +169,12 @@ http_handler = HttpHandler() do req::Request, res::Response
 
     Response(404)
 end
-
 http_handler.events["error"]  = (client, err) -> println(err)
 http_handler.events["listen"] = (port)        -> println("Listening on $port...")
 
+"""
+Create and configure a SerialPort object based on command-line args
+"""
 function open_serial_port()
     validate_args()
     port_address = ARGS[1]
