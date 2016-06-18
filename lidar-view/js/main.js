@@ -3,10 +3,6 @@
 
   var width = 960;
   var height = 960;
-  var center = {
-    x: width / 2,
-    y: height / 2
-  };
   var pi = Math.PI;
   var dataMax = 600; // Max view range of sensor data [cm]
 
@@ -60,11 +56,11 @@
   function drawData( data ) {
     var getx = function( d ) {
       return x( dataMax + d.rcm * Math.cos( d.phi ) );
-    }
+    };
 
     var gety = function( d ) {
       return y( dataMax + d.rcm * Math.sin( d.phi ) );
-    }
+    };
 
     svg.selectAll( '.data' )
       .data( data )
@@ -95,7 +91,7 @@
       id: 0,
       date: Date.now()
     } ) );
-  }
+  };
 
   // Handler for messages received from server
   ws.onmessage = function( event ) {
@@ -120,7 +116,7 @@
         // Handle more messages here as needed
         //
     }
-  }
+  };
 
   drawAxes();
 } )();
