@@ -42,6 +42,20 @@ define( function( require ) {
   rollIndicator.draw( panels[ 1 ], panelWidth, panelHeight, 'Roll' );
   pitchIndicator.draw( panels[ 2 ], panelWidth, panelHeight, 'Pitch' );
 
+  var data = [
+    { name: 'Accel', status: 0 },
+    { name: 'Mag', status: 0 },
+    { name: 'Gyro', status: 0 },
+    { name: 'System', status: 0 }
+  ];
+  body.append( 'ul' );
+  d3.select( 'ul' ).selectAll( 'li' )
+    .data( data )
+    .enter().append( 'li' )
+    .text( function( d ) {
+      return d.name + ': ' + d.status;
+    } );
+
   // Test function - make random direction changes
   var randomDemo = function() {
     var heading = 0; // deg
@@ -67,7 +81,23 @@ define( function( require ) {
         pitchIndicator.update( pitch );
 
         ( Math.abs( roll ) > 10 ) && ( roll /= 2 );
-        ( Math.abs( pitch ) > 15 ) && ( pitch /= 2 );
+        ( Math.abs( pitch ) > 15 ) && ( pitch /= 2 )
+
+        if ( steps % 100 === 0 ) {
+
+          // Update calibration status list
+          data = [
+            { name: 'Accel', status: Math.round( 3 * Math.random() ) },
+            { name: 'Mag', status: Math.round( 3 * Math.random() ) },
+            { name: 'Gyro', status: Math.round( 3 * Math.random() ) },
+            { name: 'System', status: Math.round( 3 * Math.random() ) }
+          ];
+          d3.select( 'ul' ).selectAll( 'li' )
+            .data( data )
+            .text( function( d ) {
+              return d.name + ': ' + d.status;
+            } );
+        }
 
         steps++;
         loop();
