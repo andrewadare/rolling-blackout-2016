@@ -42,17 +42,20 @@ define( function( require ) {
   rollIndicator.draw( panels[ 1 ], panelWidth, panelHeight, 'Roll' );
   pitchIndicator.draw( panels[ 2 ], panelWidth, panelHeight, 'Pitch' );
 
+  // Orientation sensor calibration status info
   var data = [
     { name: 'Accel', status: 0 },
     { name: 'Mag', status: 0 },
     { name: 'Gyro', status: 0 },
     { name: 'System', status: 0 }
   ];
-  body.append( 'h2' ).text( 'Orientation sensor Calibration status' );
+  body.append( 'h2' ).text( 'Orientation sensor calibration status' );
   body.append( 'ul' );
+
   d3.select( 'ul' ).selectAll( 'li' )
     .data( data )
     .enter().append( 'li' )
+    .attr( 'class', 'cal' )
     .text( function( d ) {
       return d.name + ': ' + d.status;
     } );
@@ -82,7 +85,7 @@ define( function( require ) {
         pitchIndicator.update( pitch );
 
         ( Math.abs( roll ) > 10 ) && ( roll /= 2 );
-        ( Math.abs( pitch ) > 15 ) && ( pitch /= 2 )
+        ( Math.abs( pitch ) > 15 ) && ( pitch /= 2 );
 
         if ( steps % 100 === 0 ) {
 
@@ -93,7 +96,7 @@ define( function( require ) {
             { name: 'Gyro', status: Math.round( 3 * Math.random() ) },
             { name: 'System', status: Math.round( 3 * Math.random() ) }
           ];
-          d3.select( 'ul' ).selectAll( 'li' )
+          d3.selectAll( '.cal' )
             .data( data )
             .text( function( d ) {
               return d.name + ': ' + d.status;
