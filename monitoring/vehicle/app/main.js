@@ -28,7 +28,8 @@ define( function( require ) {
   var i = 0;
   var panels = [];
   for ( i = 0; i < nPanels; i++ ) {
-    panels.push( panelContainer
+
+    var panel = panelContainer
       .append( 'div' )
       .attr( 'class', 'panel-div' )
       .style( 'display', 'table-cell' )
@@ -38,12 +39,7 @@ define( function( require ) {
       .attr( 'width', panelWidth )
       .attr( 'height', panelHeight )
       .append( 'svg:g' )
-      .attr( 'transform', 'translate(1,1)' ) ); // Shift to make border visible
-  }
-
-  i = 0;
-  var panelTitles = [ 'Heading', 'Roll', 'Pitch' ];
-  panels.forEach( function( panel ) {
+      .attr( 'transform', 'translate(1,1)' ); // Shift to make border visible
 
     // Add a white background rectangle
     panel.append( 'svg:rect' )
@@ -53,25 +49,16 @@ define( function( require ) {
       .style( 'stroke-width', '2px' )
       .style( 'stroke', 'black' );
 
-    // Add panel title
-    panel.append( 'svg:text' )
-      .attr( 'transform', function() {
-        return 'translate(' + 20 + ',' + 30 + ')';
-      } )
-      .text( function( d ) {
-        return panelTitles[ i ];
-      } );
-
-    i++;
-  } );
+    panels.push( panel );
+  }
 
   var compass = new Compass();
   var rollIndicator = new TiltIndicator();
   var pitchIndicator = new TiltIndicator();
 
-  compass.draw( panels[ 0 ], panelWidth, panelHeight );
-  rollIndicator.draw( panels[ 1 ], panelWidth, panelHeight );
-  pitchIndicator.draw( panels[ 2 ], panelWidth, panelHeight );
+  compass.draw( panels[ 0 ], panelWidth, panelHeight, 'Heading' );
+  rollIndicator.draw( panels[ 1 ], panelWidth, panelHeight, 'Roll' );
+  pitchIndicator.draw( panels[ 2 ], panelWidth, panelHeight, 'Pitch' );
 
   // Test function - make random direction changes
   var randomDemo = function() {
@@ -91,14 +78,14 @@ define( function( require ) {
         }
         heading += sign * 0.2 * Math.random();
 
-        roll += 0.5 * (Math.random() - 0.5);
+        roll += 0.5 * ( Math.random() - 0.5 );
         rollIndicator.update( roll );
 
-        pitch += 0.5 * (Math.random() - 0.5);
+        pitch += 0.5 * ( Math.random() - 0.5 );
         pitchIndicator.update( pitch );
 
-        (Math.abs(roll) > 10) && (roll /= 2);
-        (Math.abs(pitch) > 15) && (pitch /= 2);
+        ( Math.abs( roll ) > 10 ) && ( roll /= 2 );
+        ( Math.abs( pitch ) > 15 ) && ( pitch /= 2 );
 
         steps++;
         loop();

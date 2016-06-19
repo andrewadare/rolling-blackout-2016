@@ -18,8 +18,12 @@ define( function( require ) {
     // Length of compass needle
     this.needleRadius = 0;
 
+    this.title = 'Title';
+
     // Update needle direction
     this.update = function( headingDegrees ) {
+
+      var self = this;
 
       this.heading = headingDegrees;
 
@@ -30,9 +34,18 @@ define( function( require ) {
         'x2': 0.9 * r * Math.cos( phi ),
         'y2': 0.9 * r * Math.sin( phi )
       } );
+
+      // Update angle readout text
+      this.rootNode.select( '.readout' )
+        .text( function() {
+          return self.title + ': ' + Math.round( headingDegrees ) + '°';
+        } );
+
     };
 
-    this.draw = function( parentSVG, width, height ) {
+    this.draw = function( parentSVG, width, height, title ) {
+
+      this.title = title;
 
       // Heading angle in radians
       var phi = this.heading * Math.PI / 180 - Math.PI / 2;
@@ -110,6 +123,18 @@ define( function( require ) {
           'marker-end': 'url(#arrow)',
           'class': 'needle'
         } );
+
+      // Live angle readout
+      this.rootNode.append( 'svg:text' )
+        .attr( 'class', 'readout' )
+        .attr( 'transform', function() {
+          return 'translate(' + ( -1.4 * radius ) + ',' + ( -1.3 * radius ) + ')';
+        } )
+        .text( function() {
+          return title + ': ' + '0°';
+        } )
+        .attr( 'font-size', '24px' );
+
     };
   }
 

@@ -14,15 +14,33 @@ define( function( require ) {
     // Root SVG node to draw in
     this.rootNode = null;
 
+    this.title = 'Title';
+
     this.update = function( tilt ) {
+
       this.tilt = tilt;
+
+      var self = this;
+
+      // Update node with semicircle and pointer
       this.rootNode.select( '.horizon' )
         .attr( 'transform', function() {
           return 'rotate(' + ( tilt ) + ')';
         } );
+
+      // Update angle readout text
+      this.rootNode.select( '.readout' )
+        .text( function() {
+          return self.title + ': ' + Math.round( tilt ) + '°';
+        } );
+
     };
 
-    this.draw = function( parentSVG, width, height ) {
+    this.draw = function( parentSVG, width, height, title ) {
+
+      this.title = title;
+
+      var self = this;
 
       // Root SVG element to add as a child to the provided parentSVG
       this.rootNode = parentSVG.append( 'g' )
@@ -51,6 +69,17 @@ define( function( require ) {
         .text( function( d ) {
           return Math.abs( d ) < 180 ? d + '°' : null;
         } );
+
+      // Live angle readout
+      this.rootNode.append( 'svg:text' )
+        .attr( 'class', 'readout' )
+        .attr( 'transform', function() {
+          return 'translate(' + ( -1.4 * r ) + ',' + ( -1.3 * r ) + ')';
+        } )
+        .text( function() {
+          return Math.round( self.tilt ) + '°';
+        } )
+        .attr( 'font-size', '24px' );
 
       // Node containing semicircle and pointer arrow
       var horizon = this.rootNode.append( 'g' )
