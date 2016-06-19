@@ -29,7 +29,7 @@ define( function( require ) {
         .attr( 'transform', 'translate(' + width / 2 + ',' + height / 2 + ')' );
 
       // Outer radius of polar plot
-      var r = Math.min( width, height ) / 2 - 100;
+      var r = Math.min( width, height ) / 3;
 
       // Text labels for degrees
       this.rootNode.append( 'g' )

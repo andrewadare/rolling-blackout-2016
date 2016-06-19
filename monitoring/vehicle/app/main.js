@@ -56,7 +56,7 @@ define( function( require ) {
     // Add panel title
     panel.append( 'svg:text' )
       .attr( 'transform', function() {
-        return 'translate(' + 30 + ',' + 40 + ')';
+        return 'translate(' + 20 + ',' + 30 + ')';
       } )
       .text( function( d ) {
         return panelTitles[ i ];
@@ -85,19 +85,20 @@ define( function( require ) {
       setTimeout( function() {
         compass.update( heading );
 
-
         // Change direction every once in a while
         if ( steps % Math.round( 400 * Math.random() + 100 ) === 0 ) {
           sign = Math.round( Math.random() ) ? +1 : -1;
         }
         heading += sign * 0.2 * Math.random();
+
         roll += 0.5 * (Math.random() - 0.5);
         rollIndicator.update( roll );
+
         pitch += 0.5 * (Math.random() - 0.5);
         pitchIndicator.update( pitch );
 
-        if (Math.abs(roll) > 10) roll /= 2;
-        if (Math.abs(pitch) > 15) pitch /= 2;
+        (Math.abs(roll) > 10) && (roll /= 2);
+        (Math.abs(pitch) > 15) && (pitch /= 2);
 
         steps++;
         loop();

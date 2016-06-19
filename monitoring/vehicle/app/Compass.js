@@ -42,7 +42,7 @@ define( function( require ) {
         .attr( 'transform', 'translate(' + width / 2 + ',' + height / 2 + ')' );
 
       // Outer radius of polar plot
-      var radius = Math.min( width, height ) / 2 - 100;
+      var radius = Math.min( width, height ) / 3;
       this.needleRadius = radius;
 
       // Linear radial scale function
