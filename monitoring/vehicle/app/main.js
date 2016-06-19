@@ -48,6 +48,7 @@ define( function( require ) {
     { name: 'Gyro', status: 0 },
     { name: 'System', status: 0 }
   ];
+  body.append( 'h2' ).text( 'Orientation sensor Calibration status' );
   body.append( 'ul' );
   d3.select( 'ul' ).selectAll( 'li' )
     .data( data )
