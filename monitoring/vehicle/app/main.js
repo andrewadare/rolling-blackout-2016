@@ -6,6 +6,7 @@ define( function( require ) {
   // Modules
   var d3 = require( 'd3' );
   var Compass = require( './Compass' );
+  var PanelMaker = require( './PanelMaker' );
   var TiltIndicator = require( './TiltIndicator' );
 
   // Module-scope globals
@@ -20,36 +21,17 @@ define( function( require ) {
   // Add a div to contain the svg panels
   var panelContainer = body.append( 'div' )
     .attr( 'class', 'panel-container' )
-    .style( 'display', 'table' )
-    .style( 'width', pageWidth + 'px' )
-    .style( 'height', panelHeight + 'px' );
+    .style( {
+      'display': 'table',
+      'width': pageWidth + 'px',
+      'height': panelHeight + 'px'
+    } );
 
-  // Create an array of SVG group elements - one per panel
-  var i = 0;
+  // Create an array of background panels
   var panels = [];
-  for ( i = 0; i < nPanels; i++ ) {
-
-    var panel = panelContainer
-      .append( 'div' )
-      .attr( 'class', 'panel-div' )
-      .style( 'display', 'table-cell' )
-      .style( 'vertical-align', 'middle' )
-      .style( 'height', panelHeight + 'px' )
-      .append( 'svg' )
-      .attr( 'width', panelWidth )
-      .attr( 'height', panelHeight )
-      .append( 'svg:g' )
-      .attr( 'transform', 'translate(1,1)' ); // Shift to make border visible
-
-    // Add a white background rectangle
-    panel.append( 'svg:rect' )
-      .attr( 'width', panelWidth - 2 ) // Pad by 2px for border visibility
-      .attr( 'height', panelHeight - 2 )
-      .style( 'fill', 'white' )
-      .style( 'stroke-width', '2px' )
-      .style( 'stroke', 'black' );
-
-    panels.push( panel );
+  var panelMaker = new PanelMaker( panelWidth, panelHeight );
+  for ( var i = 0; i < nPanels; i++ ) {
+    panels.push( panelMaker.addTo( panelContainer ) );
   }
 
   var compass = new Compass();
