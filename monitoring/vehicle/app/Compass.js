@@ -13,7 +13,7 @@ define( function( require ) {
     this.heading = 0;
 
     // Root SVG node to draw in
-    this.headingNode = null;
+    this.rootNode = null;
 
     // Length of compass needle
     this.needleRadius = 0;
@@ -26,43 +26,19 @@ define( function( require ) {
       // Heading angle in radians
       var phi = this.heading * Math.PI / 180 - Math.PI / 2;
       var r = Math.max( this.needleRadius, 10 );
-      this.headingNode.select( 'line' ).attr( {
+      this.rootNode.select( '.needle' ).attr( {
         'x2': 0.9 * r * Math.cos( phi ),
         'y2': 0.9 * r * Math.sin( phi )
       } );
     };
 
-    // Test function - make random direction changes
-    this.randomDemo = function() {
-      var self = this;
-      var heading = 0; // deg
-      var steps = 0;
-      var sign = 0;
-      var loopDelay = 1 / 30; // ms
-      function loop() {
-        setTimeout( function() {
-          self.update( heading );
-
-          // Change direction every once in a while
-          if ( steps % Math.round( 400 * Math.random() + 100 ) === 0 ) {
-            sign = Math.round( Math.random() ) ? +1 : -1;
-          }
-          heading += sign * 0.2 * Math.random();
-          steps++;
-          loop();
-        }, loopDelay );
-      }
-      loop();
-
-    };
-
-    this.drawHeadingNode = function( parentSVG, width, height ) {
+    this.draw = function( parentSVG, width, height ) {
 
       // Heading angle in radians
       var phi = this.heading * Math.PI / 180 - Math.PI / 2;
 
       // Root SVG element to add as a child to the provided parentSVG
-      this.headingNode = parentSVG.append( 'g' )
+      this.rootNode = parentSVG.append( 'g' )
         .attr( 'transform', 'translate(' + width / 2 + ',' + height / 2 + ')' );
 
       // Outer radius of polar plot
@@ -77,7 +53,7 @@ define( function( require ) {
       // Radial ring(s) - not really necessary here, using only outermost ring.
       // Keeping for possible future use as a speed scale (arrow length could be
       // used as a speed indicator)
-      this.headingNode.append( 'g' )
+      this.rootNode.append( 'g' )
         .attr( 'class', 'r axis' )
         .style( 'fill', 'none' )
         .style( 'stroke', '#777' )
@@ -88,7 +64,7 @@ define( function( require ) {
         .attr( 'r', r );
 
       // Text labels for degrees
-      this.headingNode.append( 'g' )
+      this.rootNode.append( 'g' )
         .attr( 'class', 'a axis' )
         .selectAll( 'g' )
         .data( d3.range( 0, 360, 30 ) )
@@ -109,7 +85,7 @@ define( function( require ) {
         } );
 
       // SVG arrowhead
-      this.headingNode.append( 'defs' ).append( 'marker' )
+      this.rootNode.append( 'defs' ).append( 'marker' )
         .attr( {
           'id': 'arrow',
           'viewBox': '0 -5 10 10',
@@ -123,7 +99,7 @@ define( function( require ) {
         .attr( 'd', 'M0,-5L10,0L0,5' );
 
       // Compass arrow
-      this.headingNode.append( 'line' )
+      this.rootNode.append( 'line' )
         .style( 'stroke', 'black' )
         .style( 'stroke-width', '4px' )
         .attr( {

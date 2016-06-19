@@ -66,12 +66,47 @@ define( function( require ) {
   } );
 
   var compass = new Compass();
-  var tiltIndicator = new TiltIndicator();
+  var rollIndicator = new TiltIndicator();
+  var pitchIndicator = new TiltIndicator();
 
-  compass.drawHeadingNode( panels[ 0 ], panelWidth, panelHeight );
-  tiltIndicator.drawTiltNode( panels[ 1 ], panelWidth, panelHeight );
+  compass.draw( panels[ 0 ], panelWidth, panelHeight );
+  rollIndicator.draw( panels[ 1 ], panelWidth, panelHeight );
+  pitchIndicator.draw( panels[ 2 ], panelWidth, panelHeight );
 
-  compass.randomDemo();
+  // Test function - make random direction changes
+  var randomDemo = function() {
+    var heading = 0; // deg
+    var roll = 0;
+    var pitch = 0;
+    var steps = 0;
+    var sign = 0;
+    var loopDelay = 1 / 30; // ms
+    function loop() {
+      setTimeout( function() {
+        compass.update( heading );
+
+
+        // Change direction every once in a while
+        if ( steps % Math.round( 400 * Math.random() + 100 ) === 0 ) {
+          sign = Math.round( Math.random() ) ? +1 : -1;
+        }
+        heading += sign * 0.2 * Math.random();
+        roll += 0.5 * (Math.random() - 0.5);
+        rollIndicator.update( roll );
+        pitch += 0.5 * (Math.random() - 0.5);
+        pitchIndicator.update( pitch );
+
+        if (Math.abs(roll) > 10) roll /= 2;
+        if (Math.abs(pitch) > 15) pitch /= 2;
+
+        steps++;
+        loop();
+      }, loopDelay );
+    }
+    loop();
+  };
+
+  randomDemo();
 
 } );
 
