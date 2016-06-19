@@ -5,6 +5,8 @@ define( function( require ) {
 
   // Modules
   var d3 = require( 'd3' );
+  var Compass = require( './Compass' );
+  var TiltIndicator = require( './TiltIndicator' );
 
   // Module-scope globals
   var nPanels = 3;
@@ -39,41 +41,37 @@ define( function( require ) {
       .attr( 'transform', 'translate(1,1)' ) ); // Shift to make border visible
   }
 
-  // To center something, do something like .attr( 'transform', toCenter )
-  var toCenter = function() {
-    return 'translate(' + panelWidth / 2 + ',' + panelHeight / 2 + ')';
-  };
-
   i = 0;
   var panelTitles = [ 'Heading', 'Roll', 'Pitch' ];
   panels.forEach( function( panel ) {
 
     // Add a white background rectangle
     panel.append( 'svg:rect' )
-      .attr( 'width', 0.99 * panelWidth )
-      .attr( 'height', 0.99 * panelHeight )
+      .attr( 'width', panelWidth - 2 ) // Pad by 2px for border visibility
+      .attr( 'height', panelHeight - 2 )
       .style( 'fill', 'white' )
-      .style( 'stroke-width', '1px' )
+      .style( 'stroke-width', '2px' )
       .style( 'stroke', 'black' );
 
     // Add panel title
     panel.append( 'svg:text' )
       .attr( 'transform', function() {
-        return 'translate(' + 0.1 * panelWidth + ',' + 0.1 * panelHeight + ')';
+        return 'translate(' + 30 + ',' + 40 + ')';
       } )
       .text( function( d ) {
         return panelTitles[ i ];
       } );
 
-    // Add a circle
-    panel.append( 'svg:circle' )
-      .attr( 'transform', toCenter )
-      .attr( 'r', panelWidth / 3 )
-      .style( 'fill', 'none' )
-      .style( 'stroke', 'blue' );
-
     i++;
   } );
+
+  var compass = new Compass();
+  var tiltIndicator = new TiltIndicator();
+
+  compass.drawHeadingNode( panels[ 0 ], panelWidth, panelHeight );
+  tiltIndicator.drawTiltNode( panels[ 1 ], panelWidth, panelHeight );
+
+  compass.randomDemo();
 
 } );
 
