@@ -16,6 +16,20 @@ define( function( require ) {
   var panelWidth = pageWidth / nPanels;
   var panelHeight = panelWidth;
 
+  function updateCalibration( data ) {
+
+    function textLine( d ) {
+      return d.name + ': ' + d.status;
+    }
+
+    d3.select( 'ul' ).selectAll( 'li' )
+      .data( data )
+      .text( textLine )
+      .enter().append( 'li' )
+      .attr( 'class', 'cal' )
+      .text( textLine );
+  }
+
   body.append( 'h1' ).text( 'Vehicle monitoring page' );
 
   // Add a div to contain the svg panels
@@ -43,24 +57,10 @@ define( function( require ) {
   pitchIndicator.draw( panels[ 2 ], panelWidth, panelHeight, 'Pitch' );
 
   // Orientation sensor calibration status info
-  var data = [
-    { name: 'Accel', status: 0 },
-    { name: 'Mag', status: 0 },
-    { name: 'Gyro', status: 0 },
-    { name: 'System', status: 0 }
-  ];
   body.append( 'h2' ).text( 'Orientation sensor calibration status' );
   body.append( 'ul' );
 
-  d3.select( 'ul' ).selectAll( 'li' )
-    .data( data )
-    .enter().append( 'li' )
-    .attr( 'class', 'cal' )
-    .text( function( d ) {
-      return d.name + ': ' + d.status;
-    } );
-
-  // Test function - make random direction changes
+  // Test function - update the page continuously with fake random data
   var randomDemo = function() {
     var heading = 0; // deg
     var roll = 0;
@@ -89,18 +89,14 @@ define( function( require ) {
 
         if ( steps % 100 === 0 ) {
 
-          // Update calibration status list
-          data = [
+          // Update calibration status list with fake calibration data
+          var data = [
             { name: 'Accel', status: Math.round( 3 * Math.random() ) },
             { name: 'Mag', status: Math.round( 3 * Math.random() ) },
             { name: 'Gyro', status: Math.round( 3 * Math.random() ) },
             { name: 'System', status: Math.round( 3 * Math.random() ) }
           ];
-          d3.selectAll( '.cal' )
-            .data( data )
-            .text( function( d ) {
-              return d.name + ': ' + d.status;
-            } );
+          updateCalibration( data );
         }
 
         steps++;
