@@ -60,6 +60,33 @@ define( function( require ) {
   body.append( 'h2' ).text( 'Orientation sensor calibration status' );
   body.append( 'ul' );
 
+  // Initiate a WebSocket connection
+  var ws = new WebSocket( 'ws://' + window.location.host );
+  ws.onopen = function( event ) {
+    ws.send( JSON.stringify( {
+      type: 'update',
+      text: 'ready',
+      id: 0,
+      date: Date.now()
+    } ) );
+  };
+
+  // Handler for messages received from server
+  ws.onmessage = function( event ) {
+    var msg = JSON.parse( event.data );
+    switch ( msg.type ) {
+      case 'quaternions':
+        var d = msg.data;
+        console.log( d );
+        compass.update( d.yaw * 180 / Math.PI );
+        pitchIndicator.update( d.pitch * 180 / Math.PI );
+        rollIndicator.update( d.roll * 180 / Math.PI );
+        // TODO: calibration
+        break;
+    }
+  };
+
+
   // Test function - update the page continuously with fake random data
   var randomDemo = function() {
     var heading = 0; // deg
@@ -106,7 +133,7 @@ define( function( require ) {
     loop();
   };
 
-  randomDemo();
+  // randomDemo();
 
 } );
 
