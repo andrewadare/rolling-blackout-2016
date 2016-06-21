@@ -71,17 +71,43 @@ define( function( require ) {
     } ) );
   };
 
+  // From a status like 123, return { a: '0', m: '1', g: '2', s: '3' }
+  function unpackStatusCodes( status ) {
+    var s = status.toString();
+    var codes = {};
+    var keys = [ 'a', 'm', 'g', 's' ];
+    var i = 0;
+    while ( s.length < 4 ) {
+      s = '0' + s;
+    }
+    keys.forEach( function( k ) {
+      codes[ k ] = s.charAt( i );
+      i++;
+    } );
+    return codes;
+  }
+
   // Handler for messages received from server
   ws.onmessage = function( event ) {
     var msg = JSON.parse( event.data );
     switch ( msg.type ) {
       case 'quaternions':
         var d = msg.data;
-        console.log( d );
-        compass.update( d.yaw * 180 / Math.PI );
-        pitchIndicator.update( d.pitch * 180 / Math.PI );
+        // console.log( d );
+        compass.update( -d.yaw * 180 / Math.PI + 90 );
+        pitchIndicator.update( -d.pitch * 180 / Math.PI );
         rollIndicator.update( d.roll * 180 / Math.PI );
-        // TODO: calibration
+
+        // Update calibration status list with fake calibration data
+        var codes = unpackStatusCodes( d.AMGS );
+        var data = [
+          { name: 'Accel', status: codes.a },
+          { name: 'Mag', status: codes.m },
+          { name: 'Gyro', status: codes.g },
+          { name: 'System', status: codes.s }
+        ];
+        updateCalibration( data );
+
         break;
     }
   };

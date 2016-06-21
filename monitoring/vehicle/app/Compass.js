@@ -28,7 +28,7 @@ define( function( require ) {
       this.heading = headingDegrees;
 
       // Heading angle in radians
-      var phi = this.heading * Math.PI / 180 - Math.PI / 2;
+      var phi = this.heading * Math.PI / 180 - Math.PI/2;
       var r = Math.max( this.needleRadius, 10 );
       this.rootNode.select( '.needle' ).attr( {
         'x2': 0.9 * r * Math.cos( phi ),
@@ -48,7 +48,7 @@ define( function( require ) {
       this.title = title;
 
       // Heading angle in radians
-      var phi = this.heading * Math.PI / 180 - Math.PI / 2;
+      var phi = this.heading * Math.PI / 180;
 
       // Root SVG element to add as a child to the provided parentSVG
       this.rootNode = parentSVG.append( 'g' )
