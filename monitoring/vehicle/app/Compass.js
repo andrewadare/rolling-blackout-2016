@@ -133,7 +133,7 @@ define( function( require ) {
         .text( function() {
           return title + ': ' + '0°';
         } )
-        .attr( 'font-size', '24px' );
+        .attr( 'font-size', '20px' );
 
     };
   }

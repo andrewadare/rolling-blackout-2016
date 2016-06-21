@@ -36,7 +36,7 @@ define( function( require ) {
 
     };
 
-    this.draw = function( parentSVG, width, height, title ) {
+    this.draw = function( parentSVG, width, height, title, labelData ) {
 
       this.title = title;
 
@@ -79,7 +79,7 @@ define( function( require ) {
         .text( function() {
           return Math.round( self.tilt ) + '°';
         } )
-        .attr( 'font-size', '24px' );
+        .attr( 'font-size', '20px' );
 
       // Node containing semicircle and pointer arrow
       var horizon = this.rootNode.append( 'g' )
@@ -107,6 +107,19 @@ define( function( require ) {
         .attr( 'r', r )
         .attr( 'stroke', '#777' )
         .attr( 'fill', 'url(#grad)' );
+
+      horizon.selectAll( '.side-labels' )
+        .data( labelData )
+        .enter().append( 'svg:text' )
+        .attr( 'class', 'side-labels' )
+        .attr( 'transform', function( d ) {
+          return 'translate(' + ( d.xf * r ) + ',' + ( -0.1 * r ) + ')';
+        } )
+        .text( function( d ) {
+          return d.label;
+        } )
+        .attr( 'font-size', '16px' );
+
 
       // SVG arrowhead
       horizon.append( 'defs' ).append( 'marker' )

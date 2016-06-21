@@ -52,24 +52,16 @@ define( function( require ) {
   var rollIndicator = new TiltIndicator();
   var pitchIndicator = new TiltIndicator();
 
+  var leftRight = [ { label: 'Left', xf: -0.85 }, { label: 'Right', xf: +0.5 } ];
+  var frontRear = [ { label: 'Front', xf: -0.85 }, { label: 'Rear', xf: +0.5 } ];
+
   compass.draw( panels[ 0 ], panelWidth, panelHeight, 'Heading' );
-  rollIndicator.draw( panels[ 1 ], panelWidth, panelHeight, 'Roll' );
-  pitchIndicator.draw( panels[ 2 ], panelWidth, panelHeight, 'Pitch' );
+  rollIndicator.draw( panels[ 1 ], panelWidth, panelHeight, 'Roll', leftRight );
+  pitchIndicator.draw( panels[ 2 ], panelWidth, panelHeight, 'Pitch', frontRear );
 
   // Orientation sensor calibration status info
   body.append( 'h2' ).text( 'Orientation sensor calibration status' );
   body.append( 'ul' );
-
-  // Initiate a WebSocket connection
-  var ws = new WebSocket( 'ws://' + window.location.host );
-  ws.onopen = function( event ) {
-    ws.send( JSON.stringify( {
-      type: 'update',
-      text: 'ready',
-      id: 0,
-      date: Date.now()
-    } ) );
-  };
 
   // From a status like 123, return { a: '0', m: '1', g: '2', s: '3' }
   function unpackStatusCodes( status ) {
@@ -87,30 +79,44 @@ define( function( require ) {
     return codes;
   }
 
-  // Handler for messages received from server
-  ws.onmessage = function( event ) {
-    var msg = JSON.parse( event.data );
-    switch ( msg.type ) {
-      case 'quaternions':
-        var d = msg.data;
-        // console.log( d );
-        compass.update( -d.yaw * 180 / Math.PI + 90 );
-        pitchIndicator.update( -d.pitch * 180 / Math.PI );
-        rollIndicator.update( d.roll * 180 / Math.PI );
+  if ( false ) {
 
-        // Update calibration status list with fake calibration data
-        var codes = unpackStatusCodes( d.AMGS );
-        var data = [
-          { name: 'Accel', status: codes.a },
-          { name: 'Mag', status: codes.m },
-          { name: 'Gyro', status: codes.g },
-          { name: 'System', status: codes.s }
-        ];
-        updateCalibration( data );
+    // Initiate a WebSocket connection
+    var ws = new WebSocket( 'ws://' + window.location.host );
+    ws.onopen = function( event ) {
+      ws.send( JSON.stringify( {
+        type: 'update',
+        text: 'ready',
+        id: 0,
+        date: Date.now()
+      } ) );
+    };
 
-        break;
-    }
-  };
+    // Handler for messages received from server
+    ws.onmessage = function( event ) {
+      var msg = JSON.parse( event.data );
+      switch ( msg.type ) {
+        case 'quaternions':
+          var d = msg.data;
+          // console.log( d );
+          compass.update( -d.yaw * 180 / Math.PI + 90 );
+          pitchIndicator.update( -d.pitch * 180 / Math.PI );
+          rollIndicator.update( d.roll * 180 / Math.PI );
+
+          // Update calibration status list with fake calibration data
+          var codes = unpackStatusCodes( d.AMGS );
+          var data = [
+            { name: 'Accel', status: codes.a },
+            { name: 'Mag', status: codes.m },
+            { name: 'Gyro', status: codes.g },
+            { name: 'System', status: codes.s }
+          ];
+          updateCalibration( data );
+
+          break;
+      }
+    };
+  }
 
 
   // Test function - update the page continuously with fake random data
