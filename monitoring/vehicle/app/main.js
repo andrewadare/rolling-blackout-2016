@@ -79,7 +79,7 @@ define( function( require ) {
     return codes;
   }
 
-  if ( false ) {
+  if ( true ) {
 
     // Initiate a WebSocket connection
     var ws = new WebSocket( 'ws://' + window.location.host );
