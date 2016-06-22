@@ -5,6 +5,74 @@ import JSON
 
 include("server_utils.jl")
 
+# Abstract type representing a microcontroller node in the network
+abstract McuNode
+
+# McuNode singleton subtypes (for parametrization and dispatch)
+type LidarNode <: McuNode end
+type SteerNode <: McuNode end
+type AngleNode <: McuNode end
+
+# Node metadata for processing streams from MCU nodes
+immutable NodeMD{N <: McuNode}
+    port::SerialPort
+    keys::Array{AbstractString}
+    message_name::AbstractString
+end
+
+"""
+Methods to process streams from microcontrollers. Take a line of text, do any
+needed processing, and return a dict suitable for conversion to JSON.
+"""
+function process_line(md::NodeMD{SteerNode})
+    line = readline(md.port)
+    d = csv2dict(line, md.keys)
+    if keys_ok(d, md.keys)
+        # TODO: map adc to degrees here, using limits from steering.ino?
+        # int maxLeftADC = 577; int maxRightADC = 254;
+    else
+        println("Missing key(s) - skipping: ", strip(line))
+    end
+    return d
+end
+
+function process_line(md::NodeMD{AngleNode})
+    line = readline(md.port)
+    d = csv2dict(line, md.keys)
+    if keys_ok(d, md.keys)
+
+        # Get quaternion from dict
+        q = qnorm(d)
+
+        # Add Euler/Tait-Bryan angles
+        d["roll"], d["pitch"], d["yaw"] = to_euler(q)
+    else
+        println("Missing key(s) - skipping")
+    end
+    # Useful for debugging:
+    # println(strip(line))
+    return d
+end
+
+function process_line(md::NodeMD{LidarNode})
+    # TODO
+end
+
+"""
+Read streams from all MCUs in the list, process and format to JSON messages, then
+send to WebSocket client.
+"""
+function process_streams(client::WebSockets.WebSocket, mcu_nodes)
+    while true
+        for node in mcu_nodes
+            message_dict = process_line(node)
+            if keys_ok(message_dict, node.keys)
+                send_json(node.message_name, message_dict, client)
+            end
+        end
+    end
+end
+
 """
 Read delimited data lines streaming from serial port and pass them on as
 JSON-formatted WebSocket messages.
@@ -28,6 +96,17 @@ function send_sensor_data(client::WebSockets.WebSocket, sp::SerialPort, csvkeys)
         # Useful for debugging:
         # println(strip(line))
     end
+end
+
+"""
+Create and configure a SerialPort object
+"""
+function open_serial_port(port_address, speed)
+    sp = SerialPort(port_address)
+    open(sp)
+    set_speed(sp, speed)
+    set_frame(sp, ndatabits=8, parity=SP_PARITY_NONE, nstopbits=1)
+    return sp
 end
 
 """
@@ -114,6 +193,25 @@ function httph(request::Request, response::Response)
     return response
 end
 
+# function run(httph::Function, tcp_port::Integer, app::Function, mcu_nodes::Array{McuNode})
+function run(httph::Function, tcp_port::Integer, app::Function, mcu_nodes)
+
+    wsh = WebSocketHandler() do req, client
+        print(client)
+        while true
+            # Read string from client, decode, and parse to Dict
+            msg = JSON.parse(bytestring(read(client)))
+            if haskey(msg, "text") && msg["text"] == "ready"
+                println("Received update from client: ready")
+                app(client, mcu_nodes)
+            end
+        end
+    end
+
+    server = Server(HttpHandler(httph), wsh)
+    HttpServer.run(server, tcp_port)
+end
+
 function run(httph::Function, tcp_port::Integer, app::Function, sp::SerialPort, csvkeys)
 
     wsh = WebSocketHandler() do req, client
@@ -133,13 +231,27 @@ function run(httph::Function, tcp_port::Integer, app::Function, sp::SerialPort, 
 end
 
 function main()
-    # Streaming data has lines that look like this:
+
+    # Streaming data from orientation sensor unit has lines like this:
     # t:135992,AMGS:0333,qw:11737,qx:-107,qy:401,qz:-11424
-    csvkeys = ["t","AMGS","qw","qx","qy","qz"]
+    imu_port = open_serial_port("/dev/cu.wchusbserial1420", 115200)
+    imu_keys = ["t","AMGS","qw","qx","qy","qz"]
 
-    sp = open_serial_port()
+    # Time, ADC from pot, steering angle, pulses sent to stepper
+    # t: 38400 adc: 384 sa: 0.10 steps: 18750
+    str_port = open_serial_port("/dev/cu.usbmodem1411", 115200)
+    str_keys = ["t", "adc", "sa", "steps"]
 
-    run(httph, 8000, send_sensor_data, sp, csvkeys)
+    mcu_nodes = [
+        NodeMD{AngleNode}(imu_port, imu_keys, "quaternions")
+        NodeMD{SteerNode}(str_port, str_keys, "steering")
+        # TODO NodeMD{LidarNode}(ldr_port, ldr_keys, "lidar")
+    ]
+
+    # Single-MCU version
+    # run(httph, 8000, send_sensor_data, imu_port, imu_keys)
+
+    run(httph, 8000, process_streams, mcu_nodes)
 end
 
 # console(["t","AMGS","qw","qx","qy","qz"])
