@@ -27,14 +27,6 @@ void setup()
   imu.initSensor();
   imu.setOperationMode(OPERATION_MODE_NDOF);
   imu.setUpdateMode(MANUAL);
-
-  Serial.println("Streaming in:");
-  Serial.print("3...");
-  delay(1000);
-  Serial.print("2...");
-  delay(1000);
-  Serial.println("1...");
-  delay(1000);
 }
 
 void loop()

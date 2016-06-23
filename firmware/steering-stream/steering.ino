@@ -15,9 +15,6 @@
 // Number of steps taken by motor after a command is issued.
 volatile unsigned long steps = 0;
 
-// For incoming serial data
-// byte incomingByte = 0;
-
 // Digitized reading from potentiometer (running average - see ewma() below)
 unsigned int angleADC = 0;
 
@@ -145,6 +142,9 @@ void setup()
 
 void loop()
 {
+
+  ewma(analogRead(POT_PIN), angleADC);
+
   if (millis() - timeMarker >= dt)
   {
     timeMarker = millis();
@@ -159,7 +159,6 @@ void loop()
 
     // Digitized voltage drop on turnpot
     Serial.print(",adc:");
-    ewma(analogRead(POT_PIN), angleADC);
     Serial.print(angleADC >> 3);
 
     // Current steering angle of front wheels [rad]

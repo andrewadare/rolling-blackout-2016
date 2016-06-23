@@ -15,7 +15,7 @@ type AngleNode <: McuNode end
 
 # Node metadata for processing streams from MCU nodes
 immutable NodeMD{N <: McuNode}
-    port::SerialPort
+    serial_port::SerialPort
     keys::Array{AbstractString}
     message_name::AbstractString
 end
@@ -25,7 +25,7 @@ Methods to process streams from microcontrollers. Take a line of text, do any
 needed processing, and return a dict suitable for conversion to JSON.
 """
 function process_line(md::NodeMD{SteerNode})
-    line = readline(md.port)
+    line = readline(md.serial_port)
     d = csv2dict(line, md.keys)
     if keys_ok(d, md.keys)
         # TODO: map adc to degrees here, using limits from steering.ino?
@@ -37,7 +37,7 @@ function process_line(md::NodeMD{SteerNode})
 end
 
 function process_line(md::NodeMD{AngleNode})
-    line = readline(md.port)
+    line = readline(md.serial_port)
     d = csv2dict(line, md.keys)
     if keys_ok(d, md.keys)
 
@@ -71,6 +71,32 @@ function process_streams(client::WebSockets.WebSocket, mcu_nodes)
             end
         end
     end
+end
+
+"""
+Send data to stdout instead of browser. Useful for debugging.
+"""
+function process_streams(mcu_nodes)
+
+    while true
+        for node in mcu_nodes
+
+            # println(eachline(node.serial_port))
+
+            # line = readline(node.serial_port)
+            # println(strip(line))
+
+            for line in eachline(node.serial_port)
+                println(strip(line))
+            end
+
+            # message_dict = process_line(node)
+            # if keys_ok(message_dict, node.keys)
+            #     println(message_dict)
+            # end
+        end
+    end
+
 end
 
 """
@@ -141,31 +167,6 @@ function to_euler(q)
     yaw = atan2(2(q0*q3 + q1*q2), 1 - 2*(q2^2 + q3^2))
 
     return roll, pitch, yaw
-end
-
-"""
-Send data to stdout instead of browser. Useful for debugging.
-"""
-function console(csvkeys)
-    sp = open_serial_port()
-    while true
-        line = readline(sp)
-        d = csv2dict(line, csvkeys)
-        if keys_ok(d, csvkeys)
-
-            q = qnorm(d)
-
-            # Replace quaternion with versor
-            d["qw"], d["qx"], d["qy"], d["qz"] = q
-
-            # Add Euler/Tait-Bryan angles
-            d["roll"], d["pitch"], d["yaw"] = to_tait_bryan(q)
-
-            println(d)
-        else
-            println(line)
-        end
-    end
 end
 
 """
@@ -251,8 +252,12 @@ function main()
     # Single-MCU version
     # run(httph, 8000, send_sensor_data, imu_port, imu_keys)
 
-    run(httph, 8000, process_streams, mcu_nodes)
+    # Setup http/websocket server and send streaming MCU data
+    # run(httph, 8000, process_streams, mcu_nodes)
+
+    # Just print streaming data to stdout
+    process_streams(mcu_nodes)
+
 end
 
-# console(["t","AMGS","qw","qx","qy","qz"])
 main()

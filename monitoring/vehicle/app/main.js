@@ -95,9 +95,10 @@ define( function( require ) {
     // Handler for messages received from server
     ws.onmessage = function( event ) {
       var msg = JSON.parse( event.data );
+      var d = msg.data;
+      var n = 0;
       switch ( msg.type ) {
         case 'quaternions':
-          var d = msg.data;
           // console.log( d );
           compass.update( -d.yaw * 180 / Math.PI + 90 );
           pitchIndicator.update( -d.pitch * 180 / Math.PI );
@@ -112,7 +113,12 @@ define( function( require ) {
             { name: 'System', status: codes.s }
           ];
           updateCalibration( data );
-
+          break;
+        case 'steering':
+          // if ( n > 1000 ) {
+            console.log( d.t + ' ' + d.adc );
+          // }
+          // n++;
           break;
       }
     };
