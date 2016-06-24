@@ -15,7 +15,7 @@ type AngleNode <: McuNode end
 
 # Node metadata for processing streams from MCU nodes
 immutable NodeMD{N <: McuNode}
-    serial_port::SerialPort
+    sp::SerialPort
     keys::Array{AbstractString}
     message_name::AbstractString
 end
@@ -25,7 +25,7 @@ Methods to process streams from microcontrollers. Take a line of text, do any
 needed processing, and return a dict suitable for conversion to JSON.
 """
 function process_line(md::NodeMD{SteerNode})
-    line = readline(md.serial_port)
+    line = readline(md.sp)
     d = csv2dict(line, md.keys)
     if keys_ok(d, md.keys)
         # TODO: map adc to degrees here, using limits from steering.ino?
@@ -37,7 +37,7 @@ function process_line(md::NodeMD{SteerNode})
 end
 
 function process_line(md::NodeMD{AngleNode})
-    line = readline(md.serial_port)
+    line = readline(md.sp)
     d = csv2dict(line, md.keys)
     if keys_ok(d, md.keys)
 
@@ -78,23 +78,31 @@ Send data to stdout instead of browser. Useful for debugging.
 """
 function process_streams(mcu_nodes)
 
+    amcu, smcu = mcu_nodes
+
+    # flush(smcu.sp, buffer=SP_BUF_BOTH)
+
     while true
-        for node in mcu_nodes
+        # for node in mcu_nodes
+        # end
 
-            # println(eachline(node.serial_port))
+        write(smcu.sp, "status 0\n")
+        # TODO write(amcu.sp, "status 0\n")
+        sleep(0.02)
 
-            # line = readline(node.serial_port)
-            # println(strip(line))
+        # println(strip(readuntil(smcu.sp, "\n")))
+        msg = strip(readall(smcu.sp))
 
-            for line in eachline(node.serial_port)
-                println(strip(line))
-            end
-
+        if msg == "Unknown command"
+            println("trying to fix the problem")
+            sleep(1)
+        else#if contains("adc", msg)
+            Base.println(msg)
+        end
             # message_dict = process_line(node)
             # if keys_ok(message_dict, node.keys)
             #     println(message_dict)
             # end
-        end
     end
 
 end
