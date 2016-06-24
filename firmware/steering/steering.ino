@@ -149,7 +149,8 @@ void handleCommands()
 
       if (op.equalsIgnoreCase("status"))
       {
-        printStatus();
+        String s = String("adc:") + (angleADC >> 3) + String(",steps:") + steps;
+        Serial.println(s);
       }
       else if (op.equalsIgnoreCase("steer"))
       {
@@ -169,6 +170,9 @@ void handleCommands()
         Serial.print("Unknown command ");
         Serial.println(op);
       }
+
+      // Reset
+      command = "";
     }
     else
     {
@@ -184,9 +188,9 @@ void printStatus()
   Serial.print(angleADC >> 3);
 
   // Current steering angle of front wheels [rad]
-  steerAngle = 1e-4 * map(angleADC >> 3, maxLeftADC, maxRightADC, leftSteerMax, rightSteerMax);
-  Serial.print(",sa:");
-  Serial.print(steerAngle);
+  // steerAngle = 1e-4 * map(angleADC >> 3, maxLeftADC, maxRightADC, leftSteerMax, rightSteerMax);
+  // Serial.print(",sa:");
+  // Serial.print(steerAngle);
 
   // Target steering angle for a vehicle heading of due north
   // TODO uncomment when vehicleHeading is being read in
