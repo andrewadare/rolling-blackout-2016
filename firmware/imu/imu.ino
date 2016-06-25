@@ -8,15 +8,8 @@
 // Interface class instance for BNO055 sensor
 NAxisMotion imu;
 
-// Time of update step and length of update interval in ms
-unsigned long timeMarker = 0;
-const unsigned long dt = 20;
-
-// Sensor calibration status values 0 - 3
-byte accCalStatus = 0;
-byte gyrCalStatus = 0;
-byte magCalStatus = 0;
-byte sysCalStatus = 0;
+// Input command, formatted like "goto 123\n".
+String command;
 
 void setup()
 {
@@ -29,45 +22,64 @@ void setup()
   imu.setUpdateMode(MANUAL);
 }
 
+void handleCommands()
+{
+  if (Serial.available())
+  {
+    char c = Serial.read();
+    if (c == '\n')
+    {
+      // Assuming command is formatted like "goto 123\n", split command into
+      // an operation and a value/parameter/argument
+      String op = command.substring(0, command.indexOf(" "));
+      int arg = command.substring(command.indexOf(" ") + 1).toInt();
+
+      if (op.equalsIgnoreCase("status"))
+      {
+        // Collect calibration status codes (each 0-3) into a 4-digit number
+        String s = String("AMGS:")
+                   + imu.readAccelCalibStatus()
+                   + imu.readMagCalibStatus()
+                   + imu.readGyroCalibStatus()
+                   + imu.readSystemCalibStatus()
+
+                   // Quaternion components (unitless integers - see BNO055 datasheet table 3-31)
+                   + String(",qw:")
+                   + imu.readQuatW()
+                   + String(",qx:")
+                   + imu.readQuatX()
+                   + String(",qy:")
+                   + imu.readQuatY()
+                   + String(",qz:")
+                   + imu.readQuatZ();
+
+        Serial.println(s);
+      }
+
+      //
+      // Handle additional commands here
+      //
+
+      // Fall-through case
+      else
+      {
+        Serial.print("Unknown command ");
+        Serial.println(op);
+      }
+
+      // Reset
+      command = "";
+    }
+    else
+    {
+      command += c;
+    }
+  }
+}
+
 void loop()
 {
-  if (millis() - timeMarker >= dt)
-  {
-    timeMarker = millis();
-
-    imu.updateQuat();
-    imu.updateCalibStatus();
-    accCalStatus = imu.readAccelCalibStatus();
-    gyrCalStatus = imu.readMagCalibStatus();
-    magCalStatus = imu.readGyroCalibStatus();
-    sysCalStatus = imu.readSystemCalibStatus();
-
-    // Time of current step (since boot)
-    Serial.print("t:");
-    Serial.print(timeMarker);
-
-    // Print calibration status codes (each 0-3) as a 4-digit number
-    Serial.print(",AMGS:");
-    Serial.print(accCalStatus);
-    Serial.print(magCalStatus);
-    Serial.print(gyrCalStatus);
-    Serial.print(sysCalStatus);
-
-    // Quaternion components (unitless integers - see BNO055 datasheet table 3-31)
-    Serial.print(",qw:");
-    Serial.print(imu.readQuatW());
-    Serial.print(",qx:");
-    Serial.print(imu.readQuatX());
-    Serial.print(",qy:");
-    Serial.print(imu.readQuatY());
-    Serial.print(",qz:");
-    Serial.print(imu.readQuatZ());
-
-    // Current azimuthal heading
-    // imu.updateEuler();
-    // Serial.print(" H: ");
-    // Serial.print(imu.readEulerHeading());
-
-    Serial.println();
-  }
+  imu.updateQuat();
+  imu.updateCalibStatus();
+  handleCommands();
 }
