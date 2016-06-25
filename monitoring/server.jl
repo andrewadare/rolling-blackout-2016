@@ -23,7 +23,8 @@ immutable SerialNode{T <: Mcu}
 end
 
 function send_command(node::SerialNode)
-    write(node.sp, "status 0\n")
+    # Send an update request
+    write(node.sp, "u\n")
 end
 
 """
@@ -72,7 +73,7 @@ function process_streams(client::WebSockets.WebSocket, mcu_nodes::Array{SerialNo
     while true
         map(send_command, mcu_nodes)
 
-        sleep(0.05)
+        sleep(0.025) # From trial and error on laptop
 
         for node in mcu_nodes
             message_dict = read_reply(node)
@@ -101,8 +102,7 @@ function process_streams(mcu_nodes)
     while true
         map(send_command, mcu_nodes)
 
-        # TODO: find a way to read back when reply is ready
-        sleep(0.04)
+        sleep(0.02)
 
         for node in mcu_nodes
             d = read_reply(node)

@@ -20,6 +20,9 @@ void setup()
   imu.initSensor();
   imu.setOperationMode(OPERATION_MODE_NDOF);
   imu.setUpdateMode(MANUAL);
+
+  // Wait for serial port to connect
+  while (!Serial) {;}
 }
 
 void handleCommands()
@@ -29,12 +32,8 @@ void handleCommands()
     char c = Serial.read();
     if (c == '\n')
     {
-      // Assuming command is formatted like "goto 123\n", split command into
-      // an operation and a value/parameter/argument
-      String op = command.substring(0, command.indexOf(" "));
-      int arg = command.substring(command.indexOf(" ") + 1).toInt();
-
-      if (op.equalsIgnoreCase("status"))
+      // Please reply to update request
+      if (command.equalsIgnoreCase("u"))
       {
         // Collect calibration status codes (each 0-3) into a 4-digit number
         String s = String("AMGS:")
@@ -56,15 +55,11 @@ void handleCommands()
         Serial.println(s);
       }
 
-      //
-      // Handle additional commands here
-      //
-
       // Fall-through case
       else
       {
         Serial.print("Unknown command ");
-        Serial.println(op);
+        Serial.println(command);
       }
 
       // Reset
