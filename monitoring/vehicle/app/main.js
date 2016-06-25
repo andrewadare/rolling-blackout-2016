@@ -7,6 +7,7 @@ define( function( require ) {
   var d3 = require( 'd3' );
   var Compass = require( './Compass' );
   var PanelMaker = require( './PanelMaker' );
+  var SteerIndicator = require( './SteerIndicator' );
   var TiltIndicator = require( './TiltIndicator' );
 
   // Module-scope globals
@@ -15,6 +16,11 @@ define( function( require ) {
   var pageWidth = body[ 0 ][ 0 ].offsetWidth;
   var panelWidth = pageWidth / nPanels;
   var panelHeight = panelWidth;
+
+  // Converts from digitized steering angle in ADC increments to degrees
+  var adc2degrees = d3.scale.linear()
+    .domain( [ 577, 254 ] )
+    .range( [ -30, +30 ] );
 
   function updateCalibration( data ) {
 
@@ -30,7 +36,7 @@ define( function( require ) {
       .text( textLine );
   }
 
-  body.append( 'h1' ).text( 'Vehicle monitoring page' );
+  // body.append( 'h1' ).text( 'Vehicle monitoring page' );
 
   // Add a div to contain the svg panels
   var panelContainer = body.append( 'div' )
@@ -51,6 +57,7 @@ define( function( require ) {
   var compass = new Compass();
   var rollIndicator = new TiltIndicator();
   var pitchIndicator = new TiltIndicator();
+  var steerIndicator = new SteerIndicator();
 
   var leftRight = [ { label: 'Left', xf: -0.85 }, { label: 'Right', xf: +0.5 } ];
   var frontRear = [ { label: 'Front', xf: -0.85 }, { label: 'Rear', xf: +0.5 } ];
@@ -58,6 +65,21 @@ define( function( require ) {
   compass.draw( panels[ 0 ], panelWidth, panelHeight, 'Heading' );
   rollIndicator.draw( panels[ 1 ], panelWidth, panelHeight, 'Roll', leftRight );
   pitchIndicator.draw( panels[ 2 ], panelWidth, panelHeight, 'Pitch', frontRear );
+
+  // Add a div to contain the svg panels
+  var steerPanelWidth = panelWidth;
+  var steerPanelHeight = panelWidth / 2;
+  var row2Container = body.append( 'div' )
+    .attr( 'class', 'panel-container' )
+    .style( {
+      'display': 'table',
+      'width': pageWidth + 'px',
+      'height': steerPanelHeight + 'px'
+    } );
+
+  // The PanelMaker API looks awkward here. Oh well.
+  var steerPanel = ( new PanelMaker( steerPanelWidth, steerPanelHeight ) ).addTo( row2Container );
+  steerIndicator.draw( steerPanel, steerPanelWidth, steerPanelHeight, 'Steering angle' );
 
   // Orientation sensor calibration status info
   body.append( 'h2' ).text( 'Orientation sensor calibration status' );
@@ -114,12 +136,11 @@ define( function( require ) {
           updateCalibration( data );
           break;
         case 'steering':
-          console.log( d.adc );
+          steerIndicator.update( adc2degrees( d.adc ) );
           break;
       }
     };
   }
-
 
   // Test function - update the page continuously with fake random data
   var randomDemo = function() {

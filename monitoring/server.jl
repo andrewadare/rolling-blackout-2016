@@ -73,7 +73,7 @@ function process_streams(client::WebSockets.WebSocket, mcu_nodes::Array{SerialNo
     while true
         map(send_command, mcu_nodes)
 
-        sleep(0.025) # From trial and error on laptop
+        sleep(0.04) # From trial and error on laptop
 
         for node in mcu_nodes
             message_dict = read_reply(node)
