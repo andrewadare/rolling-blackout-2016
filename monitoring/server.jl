@@ -5,22 +5,24 @@ import JSON
 
 include("server_utils.jl")
 
-# Abstract type representing a microcontroller node in the network
-abstract McuNode
+# Abstract type representing a microcontroller "unit", defined here as the
+# microcontroller itself + the devices under its direct control (sensors,
+# actuators, etc.)
+abstract Mcu
 
-# McuNode singleton subtypes (for parametrization and dispatch)
-type LidarNode <: McuNode end
-type SteerNode <: McuNode end
-type AngleNode <: McuNode end
+# Mcu singleton subtypes (for parametrization and dispatch)
+type LidarMcu <: Mcu end
+type SteerMcu <: Mcu end
+type AngleMcu <: Mcu end
 
-# Node metadata for processing streams from MCU nodes
-immutable NodeMD{N <: McuNode}
+# Data type for nodes on the serial "network"
+immutable SerialNode{T <: Mcu}
     sp::SerialPort
     keys::Array{AbstractString}
     message_name::AbstractString
 end
 
-function send_command(node)
+function send_command(node::SerialNode)
     write(node.sp, "status 0\n")
 end
 
@@ -28,10 +30,10 @@ end
 Methods to process streams from microcontrollers. Take a line of text, do any
 needed processing, and return a dict suitable for conversion to JSON.
 """
-function read_reply(md::NodeMD{SteerNode})
-    line = readuntil(md.sp, '\n')
-    d = csv2dict(line, md.keys)
-    if keys_ok(d, md.keys)
+function read_reply(sn::SerialNode{SteerMcu})
+    line = readuntil(sn.sp, '\n')
+    d = csv2dict(line, sn.keys)
+    if keys_ok(d, sn.keys)
         # TODO: map adc to degrees here, using limits from steering.ino?
         # int maxLeftADC = 577; int maxRightADC = 254;
     else
@@ -40,10 +42,10 @@ function read_reply(md::NodeMD{SteerNode})
     return d
 end
 
-function read_reply(md::NodeMD{AngleNode})
-    line = readuntil(md.sp, '\n')
-    d = csv2dict(line, md.keys)
-    if keys_ok(d, md.keys)
+function read_reply(sn::SerialNode{AngleMcu})
+    line = readuntil(sn.sp, '\n')
+    d = csv2dict(line, sn.keys)
+    if keys_ok(d, sn.keys)
 
         # Get quaternion from dict
         q = qnorm(d)
@@ -58,7 +60,7 @@ function read_reply(md::NodeMD{AngleNode})
     return d
 end
 
-function read_reply(md::NodeMD{LidarNode})
+function read_reply(sn::SerialNode{LidarMcu})
     # TODO
 end
 
@@ -66,7 +68,7 @@ end
 Read streams from all MCUs in the list, process and format to JSON messages, then
 send to WebSocket client.
 """
-function process_streams(client::WebSockets.WebSocket, mcu_nodes)
+function process_streams(client::WebSockets.WebSocket, mcu_nodes::Array{SerialNode})
     while true
         map(send_command, mcu_nodes)
 
@@ -206,8 +208,7 @@ function httph(request::Request, response::Response)
     return response
 end
 
-# function run(httph::Function, tcp_port::Integer, app::Function, mcu_nodes::Array{McuNode})
-function run(httph::Function, tcp_port::Integer, app::Function, mcu_nodes)
+function run(httph::Function, tcp_port::Integer, app::Function, mcu_nodes::Array{SerialNode})
 
     wsh = WebSocketHandler() do req, client
         print(client)
@@ -256,9 +257,9 @@ function main()
     str_keys = ["adc", "steps"]
 
     mcu_nodes = [
-        NodeMD{AngleNode}(imu_port, imu_keys, "quaternions")
-        NodeMD{SteerNode}(str_port, str_keys, "steering")
-        # TODO NodeMD{LidarNode}(ldr_port, ldr_keys, "lidar")
+        SerialNode{AngleMcu}(imu_port, imu_keys, "quaternions")
+        SerialNode{SteerMcu}(str_port, str_keys, "steering")
+        # TODO SerialNode{LidarMcu}(ldr_port, ldr_keys, "lidar")
     ]
 
     # Single-MCU version
