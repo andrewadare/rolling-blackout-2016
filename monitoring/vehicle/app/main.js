@@ -96,7 +96,6 @@ define( function( require ) {
     ws.onmessage = function( event ) {
       var msg = JSON.parse( event.data );
       var d = msg.data;
-      var n = 0;
       switch ( msg.type ) {
         case 'quaternions':
           // console.log( d );
@@ -115,10 +114,7 @@ define( function( require ) {
           updateCalibration( data );
           break;
         case 'steering':
-          // if ( n > 1000 ) {
-            console.log( d.t + ' ' + d.adc );
-          // }
-          // n++;
+          console.log( d.adc );
           break;
       }
     };

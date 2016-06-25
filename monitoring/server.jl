@@ -20,12 +20,16 @@ immutable NodeMD{N <: McuNode}
     message_name::AbstractString
 end
 
+function send_command(node)
+    write(node.sp, "status 0\n")
+end
+
 """
 Methods to process streams from microcontrollers. Take a line of text, do any
 needed processing, and return a dict suitable for conversion to JSON.
 """
-function process_line(md::NodeMD{SteerNode})
-    line = readline(md.sp)
+function read_reply(md::NodeMD{SteerNode})
+    line = readuntil(md.sp, '\n')
     d = csv2dict(line, md.keys)
     if keys_ok(d, md.keys)
         # TODO: map adc to degrees here, using limits from steering.ino?
@@ -36,8 +40,8 @@ function process_line(md::NodeMD{SteerNode})
     return d
 end
 
-function process_line(md::NodeMD{AngleNode})
-    line = readline(md.sp)
+function read_reply(md::NodeMD{AngleNode})
+    line = readuntil(md.sp, '\n')
     d = csv2dict(line, md.keys)
     if keys_ok(d, md.keys)
 
@@ -54,7 +58,7 @@ function process_line(md::NodeMD{AngleNode})
     return d
 end
 
-function process_line(md::NodeMD{LidarNode})
+function read_reply(md::NodeMD{LidarNode})
     # TODO
 end
 
@@ -64,8 +68,12 @@ send to WebSocket client.
 """
 function process_streams(client::WebSockets.WebSocket, mcu_nodes)
     while true
+        map(send_command, mcu_nodes)
+
+        sleep(0.05)
+
         for node in mcu_nodes
-            message_dict = process_line(node)
+            message_dict = read_reply(node)
             if keys_ok(message_dict, node.keys)
                 send_json(node.message_name, message_dict, client)
             end
@@ -73,38 +81,34 @@ function process_streams(client::WebSockets.WebSocket, mcu_nodes)
     end
 end
 
+function readuntil(sp::SerialPort, delim::Char)
+    result = Char[]
+    while Int(nb_available(sp)) > 0
+        byte = Base.readbytes(sp, 1)[1]
+        push!(result, byte)
+        byte == delim && break
+    end
+    return join(result)
+end
+
+
 """
 Send data to stdout instead of browser. Useful for debugging.
 """
 function process_streams(mcu_nodes)
-
-    amcu, smcu = mcu_nodes
-
-    # flush(smcu.sp, buffer=SP_BUF_BOTH)
-
     while true
-        # for node in mcu_nodes
-        # end
+        map(send_command, mcu_nodes)
 
-        write(smcu.sp, "status 0\n")
-        # TODO write(amcu.sp, "status 0\n")
-        sleep(0.02)
+        # TODO: find a way to read back when reply is ready
+        sleep(0.04)
 
-        # println(strip(readuntil(smcu.sp, "\n")))
-        msg = strip(readall(smcu.sp))
-
-        if msg == "Unknown command"
-            println("trying to fix the problem")
-            sleep(1)
-        else#if contains("adc", msg)
-            Base.println(msg)
+        for node in mcu_nodes
+            d = read_reply(node)
+            keys_ok(d, node.keys) && [Base.print("$k:$(d[k]) ") for k in keys(d)]
+            println()
         end
-            # message_dict = process_line(node)
-            # if keys_ok(message_dict, node.keys)
-            #     println(message_dict)
-            # end
     end
-
+    return nothing
 end
 
 """
@@ -244,12 +248,12 @@ function main()
     # Streaming data from orientation sensor unit has lines like this:
     # t:135992,AMGS:0333,qw:11737,qx:-107,qy:401,qz:-11424
     imu_port = open_serial_port("/dev/cu.wchusbserial1420", 115200)
-    imu_keys = ["t","AMGS","qw","qx","qy","qz"]
+    imu_keys = ["AMGS","qw","qx","qy","qz"]
 
     # Time, ADC from pot, steering angle, pulses sent to stepper
     # t: 38400 adc: 384 sa: 0.10 steps: 18750
     str_port = open_serial_port("/dev/cu.usbmodem1411", 115200)
-    str_keys = ["t", "adc", "sa", "steps"]
+    str_keys = ["adc", "steps"]
 
     mcu_nodes = [
         NodeMD{AngleNode}(imu_port, imu_keys, "quaternions")
@@ -261,10 +265,10 @@ function main()
     # run(httph, 8000, send_sensor_data, imu_port, imu_keys)
 
     # Setup http/websocket server and send streaming MCU data
-    # run(httph, 8000, process_streams, mcu_nodes)
+    run(httph, 8000, process_streams, mcu_nodes)
 
     # Just print streaming data to stdout
-    process_streams(mcu_nodes)
+    # process_streams(mcu_nodes)
 
 end
 
