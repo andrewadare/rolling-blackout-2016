@@ -4,9 +4,8 @@ define( function( require ) {
   'use strict';
 
   // Modules
-  var d3 = require( 'd3' );
   var Compass = require( './Compass' );
-  var PanelMaker = require( './PanelMaker' );
+  var d3 = require( 'd3' );
   var SteerIndicator = require( './SteerIndicator' );
   var TiltIndicator = require( './TiltIndicator' );
 
@@ -15,75 +14,13 @@ define( function( require ) {
   var body = d3.select( 'body' );
   var pageWidth = body[ 0 ][ 0 ].offsetWidth;
   var panelWidth = pageWidth / nPanels;
-  var panelHeight = panelWidth;
+  var row1Height = panelWidth;
+  var row2Height = row1Height / 2;
 
   // Converts from digitized steering angle in ADC increments to degrees
   var adc2degrees = d3.scale.linear()
     .domain( [ 577, 254 ] )
     .range( [ -30, +30 ] );
-
-  function updateCalibration( data ) {
-
-    function textLine( d ) {
-      return d.name + ': ' + d.status;
-    }
-
-    d3.select( 'ul' ).selectAll( 'li' )
-      .data( data )
-      .text( textLine )
-      .enter().append( 'li' )
-      .attr( 'class', 'cal' )
-      .text( textLine );
-  }
-
-  // body.append( 'h1' ).text( 'Vehicle monitoring page' );
-
-  // Add a div to contain the svg panels
-  var panelContainer = body.append( 'div' )
-    .attr( 'class', 'panel-container' )
-    .style( {
-      'display': 'table',
-      'width': pageWidth + 'px',
-      'height': panelHeight + 'px'
-    } );
-
-  // Create an array of background panels
-  var panels = [];
-  var panelMaker = new PanelMaker( panelWidth, panelHeight );
-  for ( var i = 0; i < nPanels; i++ ) {
-    panels.push( panelMaker.addTo( panelContainer ) );
-  }
-
-  var compass = new Compass();
-  var rollIndicator = new TiltIndicator();
-  var pitchIndicator = new TiltIndicator();
-  var steerIndicator = new SteerIndicator();
-
-  var leftRight = [ { label: 'Left', xf: -0.85 }, { label: 'Right', xf: +0.5 } ];
-  var frontRear = [ { label: 'Front', xf: -0.85 }, { label: 'Rear', xf: +0.5 } ];
-
-  compass.draw( panels[ 0 ], panelWidth, panelHeight, 'Heading' );
-  rollIndicator.draw( panels[ 1 ], panelWidth, panelHeight, 'Roll', leftRight );
-  pitchIndicator.draw( panels[ 2 ], panelWidth, panelHeight, 'Pitch', frontRear );
-
-  // Add a div to contain the svg panels
-  var steerPanelWidth = panelWidth;
-  var steerPanelHeight = panelWidth / 2;
-  var row2Container = body.append( 'div' )
-    .attr( 'class', 'panel-container' )
-    .style( {
-      'display': 'table',
-      'width': pageWidth + 'px',
-      'height': steerPanelHeight + 'px'
-    } );
-
-  // The PanelMaker API looks awkward here. Oh well.
-  var steerPanel = ( new PanelMaker( steerPanelWidth, steerPanelHeight ) ).addTo( row2Container );
-  steerIndicator.draw( steerPanel, steerPanelWidth, steerPanelHeight, 'Steering angle' );
-
-  // Orientation sensor calibration status info
-  body.append( 'h2' ).text( 'Orientation sensor calibration status' );
-  body.append( 'ul' );
 
   // From a status like 123, return { a: '0', m: '1', g: '2', s: '3' }
   function unpackStatusCodes( status ) {
@@ -101,7 +38,95 @@ define( function( require ) {
     return codes;
   }
 
-  if ( true ) {
+  function updateCalibration( data ) {
+
+    function textLine( d ) {
+      return d.name + ': ' + d.status;
+    }
+
+    d3.select( 'ul' ).selectAll( 'li' )
+      .data( data )
+      .text( textLine )
+      .enter().append( 'li' )
+      .attr( 'class', 'cal' )
+      .text( textLine );
+  }
+
+  // Add a "row" div with a fixed height that spans the page
+  var row1Div = body.append( 'div' )
+    .attr( 'class', 'row1' )
+    .style( {
+      'display': 'table',
+      'width': pageWidth + 'px',
+      'height': row1Height + 'px'
+    } );
+
+  // Add a div for the second row of panels
+  var row2Div = body.append( 'div' )
+    .attr( 'class', 'row2' )
+    .style( {
+      'display': 'table',
+      'width': pageWidth + 'px',
+      'height': row2Height + 'px'
+    } );
+
+  // Add "cell" divs to rows
+  for ( var i = 0; i < nPanels; i++ ) {
+    row1Div.append( 'div' )
+      .attr( 'class', 'row1 col' + ( i + 1 ) )
+      .style( {
+        'display': 'table-cell',
+        'vertical-align': 'middle',
+        'height': row1Height + 'px'
+      } );
+    row2Div.append( 'div' )
+      .attr( 'class', 'row2 col' + ( i + 1 ) )
+      .style( {
+        'display': 'table-cell',
+        'vertical-align': 'middle',
+        'height': row2Height + 'px'
+      } );
+  }
+
+  // body.append( 'h1' ).text( 'Vehicle monitoring page' );
+  var compass = Compass();
+  var rollIndicator = TiltIndicator();
+  var pitchIndicator = TiltIndicator();
+  var steerIndicator = SteerIndicator();
+  compass
+    .width( panelWidth - 2 )
+    .height( row1Height - 2 )
+    .title( 'Heading' );
+
+  rollIndicator
+    .width( panelWidth - 2 )
+    .height( row1Height - 2 )
+    .title( 'Roll' )
+    .labelData( [ { label: 'Left', xf: -0.85 }, { label: 'Right', xf: +0.5 } ] );
+
+  pitchIndicator
+    .width( panelWidth - 2 )
+    .height( row1Height - 2 )
+    .title( 'Pitch' )
+    .labelData( [ { label: 'Front', xf: -0.85 }, { label: 'Rear', xf: +0.5 } ] );
+
+  steerIndicator
+    .width( panelWidth - 2 )
+    .height( row2Height - 2 )
+    .title( 'Steer angle' );
+
+  // Create initial SVG panels
+  d3.select( '.row1.col1' ).datum( { heading: 0 } ).call( compass );
+  d3.select( '.row1.col2' ).datum( { tilt: 0 } ).call( rollIndicator );
+  d3.select( '.row1.col3' ).datum( { tilt: 10 } ).call( pitchIndicator );
+  d3.select( '.row2.col1' ).datum( { angle: 0 } ).call( steerIndicator );
+
+  // Orientation sensor calibration status info
+  d3.select( '.row2.col2' ).append( 'h2' )
+    .text( 'Orientation sensor calibration status' );
+  d3.select( '.row2.col2' ).append( 'ul' );
+
+  if ( false ) {
 
     // Initiate a WebSocket connection
     var ws = new WebSocket( 'ws://' + window.location.host );
@@ -141,54 +166,23 @@ define( function( require ) {
       }
     };
   }
+  // Fake, nonsensical animation loop for basic testing
+  else {
+    var j = 0;
+    setInterval( function() {
+      d3.select( '.row1.col1' ).datum( { heading: 360 * Math.sin( j / 100 ) } ).call( compass );
+      d3.select( '.row1.col3' ).datum( { tilt: 10 * Math.sin( j / 5 ) } ).call( pitchIndicator );
+      d3.select( '.row2.col1' ).datum( { angle: 30 * Math.cos( j / 10 ) } ).call( steerIndicator );
+      updateCalibration( [
+        { name: 'Accel', status: Math.floor( 3 * Math.random() ) },
+        { name: 'Mag', status: Math.floor( 3 * Math.random() ) },
+        { name: 'Gyro', status: Math.floor( 3 * Math.random() ) },
+        { name: 'System', status: Math.floor( 3 * Math.random() ) }
+      ] );
 
-  // Test function - update the page continuously with fake random data
-  var randomDemo = function() {
-    var heading = 0; // deg
-    var roll = 0;
-    var pitch = 0;
-    var steps = 0;
-    var sign = 0;
-    var loopDelay = 1 / 30; // ms
-    function loop() {
-      setTimeout( function() {
-        compass.update( heading );
-
-        // Change direction every once in a while
-        if ( steps % Math.round( 400 * Math.random() + 100 ) === 0 ) {
-          sign = Math.round( Math.random() ) ? +1 : -1;
-        }
-        heading += sign * 0.2 * Math.random();
-
-        roll += 0.5 * ( Math.random() - 0.5 );
-        rollIndicator.update( roll );
-
-        pitch += 0.5 * ( Math.random() - 0.5 );
-        pitchIndicator.update( pitch );
-
-        ( Math.abs( roll ) > 10 ) && ( roll /= 2 );
-        ( Math.abs( pitch ) > 15 ) && ( pitch /= 2 );
-
-        if ( steps % 100 === 0 ) {
-
-          // Update calibration status list with fake calibration data
-          var data = [
-            { name: 'Accel', status: Math.round( 3 * Math.random() ) },
-            { name: 'Mag', status: Math.round( 3 * Math.random() ) },
-            { name: 'Gyro', status: Math.round( 3 * Math.random() ) },
-            { name: 'System', status: Math.round( 3 * Math.random() ) }
-          ];
-          updateCalibration( data );
-        }
-
-        steps++;
-        loop();
-      }, loopDelay );
-    }
-    loop();
-  };
-
-  // randomDemo();
+      j++;
+    }, 100 );
+  }
 
 } );
 
