@@ -37,15 +37,15 @@ void count()
   steps++;
 }
 
-// Exponentially weighted moving averages for integer data. Used for over-
+// Exponentially weighted moving average for integer data. Used for over-
 // sampling noisy measurements in a time series.
-// When using the result, it must be divided by 8: x8 >> 3.
-void ewma(unsigned int x, unsigned int &x8)
+// When using the result, it must be divided by 16: x16 >> 4.
+void ewma(unsigned int x, unsigned int &x16)
 {
-  // Compute weights like 1/8*(current x) + 7/8*(prev running avg x), except
-  // multiplied through by 8 to avoid precision loss from int division:
-  // 8*xavg = x + 8*xavg - (8*xavg - 8/2)/8
-  x8 = x + x8 - ((x8 - 4) >> 3);
+  // Compute weights like 1/16*(current x) + 15/16*(prev running avg x), except
+  // multiplied through by 16 to avoid precision loss from int division:
+  // 16*xavg = x + 16*xavg - (16*xavg - 16/2)/16
+  x16 = x + x16 - ((x16 - 8) >> 4);
 }
 
 // Compute steering angle from target vehicle heading, given the current heading.
@@ -109,6 +109,40 @@ void steer(float steerAngleSetpoint, float tolerance = 0.01)
   }
 }
 
+void steerTo(int targetADC, int tolerance)
+{
+  int currentADC = (angleADC >> 4);
+
+  // Validate inputs
+  if (targetADC >= maxLeftADC || targetADC <= maxRightADC)
+  {
+    pinMode(STEP_PIN, INPUT);
+    return;
+  }
+
+  if (currentADC > targetADC + tolerance)
+  {
+    // Steer right
+    pinMode(STEP_PIN, OUTPUT);
+    digitalWrite(DIR_PIN, LOW);
+  }
+
+  else if (currentADC < targetADC - tolerance)
+  {
+    // Steer left
+    pinMode(STEP_PIN, OUTPUT);
+    digitalWrite(DIR_PIN, HIGH);
+  }
+
+  else
+  {
+    // Hold the current steering angle.
+    // Disable timer output and reset stepper pulse counter
+    pinMode(STEP_PIN, INPUT);
+    steps = 0;
+  }
+}
+
 void handleCommands()
 {
   if (Serial.available())
@@ -127,23 +161,19 @@ void handleCommands()
         arg = command.substring(spaceIndex + 1).toInt();
       }
 
-      // Please reply to update request
+      // Please reply to request for latest steering angle reading
       if (op.equalsIgnoreCase("u"))
       {
-        String s = String("adc:") + (angleADC >> 3) + String(",steps:") + steps;
+        String s = String("adc:") + (angleADC >> 4) + String(",steps:") + steps;
         Serial.println(s);
       }
-      else if (op.equalsIgnoreCase("steer"))
-      {
-        Serial.print("Received: steer ");
-        Serial.println(arg);
-        // TODO
-        // steer(targetSteerAngle(0.0), 0.04); // Head north, 2.3 degree deadband
-      }
 
-      //
-      // Handle additional commands here
-      //
+      // Steer the car - expecting that arg is a steering angle in ADC units
+      else if (op.equalsIgnoreCase("s"))
+      {
+        steerTo(arg, 5);
+        // steer(targetSteerAngle(arg*RAD_PER_DEG), 0.01);
+      }
 
       // Fall-through case
       else
@@ -163,7 +193,7 @@ void handleCommands()
 }
 
 // Current steering angle of front wheels [rad]
-// steerAngle = 1e-4 * map(angleADC >> 3, maxLeftADC, maxRightADC, leftSteerMax, rightSteerMax);
+// steerAngle = 1e-4 * map(angleADC >> 4, maxLeftADC, maxRightADC, leftSteerMax, rightSteerMax);
 
 void setup()
 {
