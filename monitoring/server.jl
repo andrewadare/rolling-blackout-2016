@@ -70,6 +70,7 @@ Read streams from all MCUs in the list, process and format to JSON messages, the
 send to WebSocket client.
 """
 function process_streams(client::WebSockets.WebSocket, mcu_nodes::Array{SerialNode})
+    imu, str = mcu_nodes
     while true
         map(send_command, mcu_nodes)
 
@@ -81,6 +82,8 @@ function process_streams(client::WebSockets.WebSocket, mcu_nodes::Array{SerialNo
                 send_json(node.message_name, message_dict, client)
             end
         end
+        # Send steer command
+        write(str.sp, "s 500\n")
     end
 end
 
@@ -93,7 +96,6 @@ function readuntil(sp::SerialPort, delim::Char)
     end
     return join(result)
 end
-
 
 """
 Send data to stdout instead of browser. Useful for debugging.
@@ -109,6 +111,25 @@ function process_streams(mcu_nodes)
             keys_ok(d, node.keys) && [Base.print("$k:$(d[k]) ") for k in keys(d)]
             println()
         end
+    end
+    return nothing
+end
+
+function process_streams_test(mcu_nodes)
+    imu, str = mcu_nodes
+    while true
+        # Send update requests
+        write(imu.sp, "u\n")
+        write(str.sp, "u\n")
+        sleep(0.02)
+        for node in mcu_nodes
+            d = read_reply(node)
+            keys_ok(d, node.keys) && [Base.print("$k:$(d[k]) ") for k in keys(d)]
+            println()
+        end
+
+        # Send steer command
+        write(str.sp, "s 300\n")
     end
     return nothing
 end
@@ -269,7 +290,7 @@ function main()
     run(httph, 8000, process_streams, mcu_nodes)
 
     # Just print streaming data to stdout
-    # process_streams(mcu_nodes)
+    # process_streams_test(mcu_nodes)
 
 end
 
