@@ -126,7 +126,7 @@ define( function( require ) {
     .text( 'Orientation sensor calibration status' );
   d3.select( '.row2.col2' ).append( 'ul' );
 
-  if ( false ) {
+  if ( true ) {
 
     // Initiate a WebSocket connection
     var ws = new WebSocket( 'ws://' + window.location.host );
@@ -145,12 +145,13 @@ define( function( require ) {
       var d = msg.data;
       switch ( msg.type ) {
         case 'quaternions':
-          // console.log( d );
-          compass.update( -d.yaw * 180 / Math.PI + 90 );
-          pitchIndicator.update( -d.pitch * 180 / Math.PI );
-          rollIndicator.update( d.roll * 180 / Math.PI );
 
-          // Update calibration status list with fake calibration data
+          // Update compass and tilt indicators
+          d3.select( '.row1.col1' ).datum( { heading: -d.yaw * 180 / Math.PI + 90 } ).call( compass );
+          d3.select( '.row1.col2' ).datum( { tilt: d.roll * 180 / Math.PI } ).call( rollIndicator );
+          d3.select( '.row1.col3' ).datum( { tilt: -d.pitch * 180 / Math.PI } ).call( pitchIndicator );
+
+          // Update calibration status
           var codes = unpackStatusCodes( d.AMGS );
           var data = [
             { name: 'Accel', status: codes.a },
@@ -160,8 +161,9 @@ define( function( require ) {
           ];
           updateCalibration( data );
           break;
+
         case 'steering':
-          steerIndicator.update( adc2degrees( d.adc ) );
+          d3.select( '.row2.col1' ).datum( { angle: adc2degrees( d.adc ) } ).call( steerIndicator );
           break;
       }
     };
