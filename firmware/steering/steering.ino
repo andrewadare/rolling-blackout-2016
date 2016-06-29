@@ -114,11 +114,11 @@ void steerTo(int targetADC, int tolerance)
   int currentADC = (angleADC >> 4);
 
   // Validate inputs
-  if (targetADC >= maxLeftADC || targetADC <= maxRightADC)
-  {
-    pinMode(STEP_PIN, INPUT);
-    return;
-  }
+  // if (targetADC >= maxLeftADC || targetADC <= maxRightADC)
+  // {
+  //   pinMode(STEP_PIN, INPUT);
+  //   return;
+  // }
 
   if (currentADC > targetADC + tolerance)
   {

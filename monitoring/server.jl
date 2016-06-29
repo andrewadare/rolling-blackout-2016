@@ -5,6 +5,23 @@ import JSON
 
 include("server_utils.jl")
 
+const MAX_LEFT_ADC = 577
+const MAX_RIGHT_ADC = 254
+const MAX_LEFT_DEG = -30
+const MAX_RIGHT_DEG = 30
+
+"""
+Rotation angle alpha of vehicle velocity vector as a function of steering angle
+delta:
+
+  alpha = atan(a * tan(delta)/b)
+
+where b is the wheelbase and a is from rear of vehicle to CM. To a decent
+approximation, a = b/2. Then at the max steering angle of pi/6, the max heading
+change is atan2(tan(pi/6), 2) = 0.2810 rad.
+"""
+const MAX_HEADING_CHANGE_RAD = atan2(tan(pi/180 * MAX_RIGHT_DEG), 2)
+
 # Abstract type representing a microcontroller "unit", defined here as the
 # microcontroller itself + the devices under its direct control (sensors,
 # actuators, etc.)
@@ -25,6 +42,53 @@ end
 function send_command(node::SerialNode)
     # Send an update request
     write(node.sp, "u\n")
+end
+
+"""
+Generates a linear mapping function given a domain (x1,x2) and a range(y1,y2).
+"""
+function linear_map(x1,x2,y1,y2)
+    @assert x2 >= x1
+    function f(x)
+        m = (y2-y1)/(x2-x1)
+        # return clamp(y1 + m*(x - x1), y1, y2)
+        return y1 + m*(x - x1)
+    end
+    return f
+end
+
+"""
+Functions to convert between steering angle in degrees and in ADC units.
+"""
+deg_to_adc = linear_map(MAX_LEFT_DEG, MAX_RIGHT_DEG, MAX_LEFT_ADC, MAX_RIGHT_ADC)
+adc_to_deg = linear_map(MAX_RIGHT_ADC, MAX_LEFT_ADC, MAX_RIGHT_DEG, MAX_LEFT_DEG)
+
+"""
+Compute steering angle for a target vehicle heading, given the current heading.
+Heading angles should be in provided in degrees, increasing CW from north = 0.
+Target steering angle is returned in degrees.
+"""
+function target_steer_angle(target_heading, vehicle_heading)
+    # @assert 0 < target_heading < 360 "target_heading outside allowed range"
+    # @assert 0 < vehicle_heading < 360 "vehicle_heading outside allowed range"
+
+    # Angle [rad] of velocity vector from vehicle centerline at CM. L < 0; R > 0.
+    a = pi/180*(target_heading - vehicle_heading)
+
+    # Redefine to be inside a range of -pi to pi
+    a = (a < -pi) ? a + 2*pi : (a > pi) ? a - 2*pi : a
+
+    a > MAX_HEADING_CHANGE_RAD && return MAX_RIGHT_DEG
+    a < -MAX_HEADING_CHANGE_RAD && return MAX_LEFT_DEG
+
+    # Steering angle delta from steering model: delta = atan(2*tan(a)).
+    delta = atan(2*tan(a))
+
+    # A Taylor expansion to cubic order could be used instead
+    # (good to 1% in worst case).
+    # return 2*a*(1 - a*a)
+
+    return delta*180/pi
 end
 
 """
@@ -54,7 +118,7 @@ function read_reply(sn::SerialNode{AngleMcu})
         # Add Euler/Tait-Bryan angles
         d["roll"], d["pitch"], d["yaw"] = to_euler(q)
     else
-        println("Missing key(s) - skipping")
+        println("Missing key(s) - skipping", strip(line))
     end
     # Useful for debugging:
     # println(strip(line))
@@ -69,21 +133,57 @@ end
 Read streams from all MCUs in the list, process and format to JSON messages, then
 send to WebSocket client.
 """
+# function process_streams(client::WebSockets.WebSocket, mcu_nodes::Array{SerialNode})
+#     imu, str = mcu_nodes
+#     while true
+#         map(send_command, mcu_nodes)
+
+#         sleep(0.04) # From trial and error on laptop
+
+#         for node in mcu_nodes
+#             message_dict = read_reply(node)
+#             if keys_ok(message_dict, node.keys)
+#                 send_json(node.message_name, message_dict, client)
+#             end
+#         end
+#         # Send steer command
+#         write(str.sp, "s 500\n")
+#     end
+# end
+
 function process_streams(client::WebSockets.WebSocket, mcu_nodes::Array{SerialNode})
     imu, str = mcu_nodes
     while true
+        dicts = []
         map(send_command, mcu_nodes)
 
         sleep(0.04) # From trial and error on laptop
 
         for node in mcu_nodes
             message_dict = read_reply(node)
+            push!(dicts, message_dict)
             if keys_ok(message_dict, node.keys)
                 send_json(node.message_name, message_dict, client)
             end
         end
-        # Send steer command
-        write(str.sp, "s 500\n")
+
+        d_imu = dicts[1]
+        if keys_ok(d_imu, imu.keys)
+            target_heading = 270 # Whatever, just testing
+
+            # Current heading
+            h = 90 - 180/pi*d_imu["yaw"]
+            if h < 0
+                h += 360
+            end
+            # h = (h < 0) ? h + 360 : (h > 360) ? h - 360 : h
+
+            st = target_steer_angle(target_heading, h)
+            adc = round(Int, deg_to_adc(st))
+            println("Current: $h, target_heading: $target_heading, target_steer_angle: $st, adc: $adc")
+            # Send steer command
+            write(str.sp, "s $adc\n")
+        end
     end
 end
 
@@ -121,15 +221,30 @@ function process_streams_test(mcu_nodes)
         # Send update requests
         write(imu.sp, "u\n")
         write(str.sp, "u\n")
-        sleep(0.02)
-        for node in mcu_nodes
-            d = read_reply(node)
-            keys_ok(d, node.keys) && [Base.print("$k:$(d[k]) ") for k in keys(d)]
-            println()
-        end
 
-        # Send steer command
-        write(str.sp, "s 300\n")
+        sleep(0.04)
+
+        d_imu = read_reply(imu)
+        d_str = read_reply(str)
+
+        # for node in mcu_nodes
+        #     d = read_reply(node)
+        #     keys_ok(d, node.keys) && [Base.print("$k:$(d[k]) ") for k in keys(d)]
+        #     println()
+        # end
+        if keys_ok(d_imu, imu.keys)
+            target_heading = 270 # Whatever, just testing
+
+            # Current heading
+            h = -180/pi*d_imu["yaw"]
+            # h = (h < 0) ? h + 360 : (h > 360) ? h - 360 : h
+
+            st = target_steer_angle(target_heading, h)
+            adc = round(Int, deg_to_adc(st))
+            println("Current: $h, target_heading: $target_heading, target_steer_angle: $st, adc: $adc")
+            # Send steer command
+            write(str.sp, "s $adc\n")
+        end
     end
     return nothing
 end
