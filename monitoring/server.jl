@@ -96,7 +96,7 @@ Methods to process streams from microcontrollers. Take a line of text, do any
 needed processing, and return a dict suitable for conversion to JSON.
 """
 function read_reply(sn::SerialNode{SteerMcu})
-    line = readuntil(sn.sp, '\n')
+    line = readuntil(sn.sp, '\n', 100)
     d = csv2dict(line, sn.keys)
     if keys_ok(d, sn.keys)
         # TODO: map adc to degrees here, using limits from steering.ino?
@@ -108,7 +108,7 @@ function read_reply(sn::SerialNode{SteerMcu})
 end
 
 function read_reply(sn::SerialNode{AngleMcu})
-    line = readuntil(sn.sp, '\n')
+    line = readuntil(sn.sp, '\n', 100)
     d = csv2dict(line, sn.keys)
     if keys_ok(d, sn.keys)
 
@@ -154,20 +154,23 @@ send to WebSocket client.
 function process_streams(client::WebSockets.WebSocket, mcu_nodes::Array{SerialNode})
     imu, str = mcu_nodes
     while true
-        dicts = []
+
+        # List of most recent messages as Dict objects
+        messages = []
+
+        # Send out request updates
         map(send_command, mcu_nodes)
 
-        sleep(0.04) # From trial and error on laptop
-
+        # Read replies and forward them to monitoring page in JSON format
         for node in mcu_nodes
             message_dict = read_reply(node)
-            push!(dicts, message_dict)
+            push!(messages, message_dict)
             if keys_ok(message_dict, node.keys)
                 send_json(node.message_name, message_dict, client)
             end
         end
 
-        d_imu = dicts[1]
+        d_imu = messages[1]
         if keys_ok(d_imu, imu.keys)
             target_heading = 270 # Whatever, just testing
 
@@ -176,7 +179,6 @@ function process_streams(client::WebSockets.WebSocket, mcu_nodes::Array{SerialNo
             if h < 0
                 h += 360
             end
-            # h = (h < 0) ? h + 360 : (h > 360) ? h - 360 : h
 
             st = target_steer_angle(target_heading, h)
             adc = round(Int, deg_to_adc(st))
@@ -187,14 +189,18 @@ function process_streams(client::WebSockets.WebSocket, mcu_nodes::Array{SerialNo
     end
 end
 
-function readuntil(sp::SerialPort, delim::Char)
-    result = Char[]
-    while Int(nb_available(sp)) > 0
-        byte = Base.readbytes(sp, 1)[1]
-        push!(result, byte)
-        byte == delim && break
+function readuntil(sp::SerialPort, delim::Char, timeout_ms::Integer)
+    out = Char[]
+    start_time = time_ns()
+    while !eof(sp)
+        (time_ns() - start_time)/1e6 > timeout_ms && break
+        if nb_available(sp) > 0
+            c = read(sp, Char)
+            push!(out, c)
+            c == delim && break
+        end
     end
-    return join(result)
+    return join(out)
 end
 
 """
@@ -392,6 +398,7 @@ function main()
     str_port = open_serial_port("/dev/cu.usbmodem1411", 115200)
     str_keys = ["adc", "steps"]
 
+    # TODO: make this a Dict so nodes can be accessed by name
     mcu_nodes = [
         SerialNode{AngleMcu}(imu_port, imu_keys, "quaternions")
         SerialNode{SteerMcu}(str_port, str_keys, "steering")
