@@ -48,67 +48,6 @@ void ewma(unsigned int x, unsigned int &x16)
   x16 = x + x16 - ((x16 - 8) >> 4);
 }
 
-// Compute steering angle from target vehicle heading, given the current heading.
-// Angles should be in radians, increasing CW from north = 0.
-float targetSteerAngle(float targetHeading, float vehicleHeading)
-{
-  // Angle of velocity vector from vehicle centerline at CM. L < 0; R > 0.
-  float a = targetHeading - vehicleHeading;
-
-  // Define target velocity angle inside a range of -pi to pi
-  a = (a < -PI) ? a + 2*PI : (a > PI) ? a - 2*PI : a;
-
-  if (a > MAX_HEADING_CHANGE)
-  {
-    return MAX_STEERING_ANGLE;
-  }
-
-  if (a < -MAX_HEADING_CHANGE)
-  {
-    return -MAX_STEERING_ANGLE;
-  }
-
-  // Steering angle delta from steering model: delta = atan(2*tan(a)).
-  // Taylor expansion to cubic order used instead (good to 1% in worst case).
-  return 2*a*(1 - a*a);
-}
-
-// Configure PWM output so that front wheels steer towards steerAngleSetpoint.
-// Intended to be called inside a loop. Args in radians.
-void steer(float steerAngleSetpoint, float tolerance = 0.01)
-{
-  float delta = steerAngleSetpoint - steerAngle;
-
-  // Validate inputs
-  if (abs(steerAngle + delta) > MAX_STEERING_ANGLE)
-  {
-    pinMode(STEP_PIN, INPUT);
-    return;
-  }
-
-  if (delta > tolerance)
-  {
-    // Steer right of current angle
-    pinMode(STEP_PIN, OUTPUT);
-    digitalWrite(DIR_PIN, LOW);
-  }
-
-  else if (delta < -tolerance)
-  {
-    // Steer left of current angle
-    pinMode(STEP_PIN, OUTPUT);
-    digitalWrite(DIR_PIN, HIGH);
-  }
-
-  else
-  {
-    // Hold the current steering angle.
-    // Disable timer output and reset stepper pulse counter
-    pinMode(STEP_PIN, INPUT);
-    steps = 0;
-  }
-}
-
 void steerTo(int targetADC, int tolerance)
 {
   int currentADC = (angleADC >> 4);
@@ -168,11 +107,11 @@ void handleCommands()
         Serial.println(s);
       }
 
-      // Steer the car - expecting that arg is a steering angle in ADC units
+      // Steer the car - expecting that arg is a steering angle in ADC units.
       else if (op.equalsIgnoreCase("s"))
       {
-        steerTo(arg, 5);
-        // steer(targetSteerAngle(arg*RAD_PER_DEG), 0.01);
+        // Currently the motor runs at a fixed speed (stepper pulse rate).
+        steerTo(arg, 10);
       }
 
       // Fall-through case
@@ -205,8 +144,8 @@ void setup()
   // stepper motor driver. See comments in test_pwm.ino for details.
   TCCR2A = (1 << WGM20) | (1 << COM2A0) | (1 << COM2B1);
   TCCR2B = (1 << CS22) | (1 << WGM22);
-  OCR2A = 250;
-  OCR2B = 125;
+  OCR2A = 220;
+  OCR2B = 110;
 
   // Set rotation direction
   digitalWrite(DIR_PIN, LOW);
