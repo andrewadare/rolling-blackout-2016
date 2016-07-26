@@ -19,14 +19,8 @@
 #define DISABLE 0    // Motor driver reset pin asserted low:
 #define ENABLE 1     //   DISABLE = !RESET (low); ENABLE = !RESET (high)
 
-// Threshold used in trapezoidal motor ramp schedule [ADC units].
-// Defines maximum distance from target position at which to begin rampdown.
-// Large values begin rampdown sooner (risking undershoot); small values begin
-// later (risking overshoot). Optimal value is found empirically.
-// #define RAMPDOWN_DISTANCE 100
-
-// Byte received from serial input
-byte rxByte = 0;
+// Maximum steering motor speed (<256)
+#define MAX_DUTY_CYCLE 150
 
 // 8 bit PWM value
 byte dutyCycle = 0;
@@ -90,7 +84,7 @@ int rampUp(const int target, const int halfDistance)
 {
   int initialADC = angleADC;
 
-  for (dutyCycle = 0; dutyCycle < 256; dutyCycle++)
+  for (dutyCycle = 0; dutyCycle < MAX_DUTY_CYCLE; dutyCycle++)
   {
     // Increase speed by one step
     analogWrite(PWM_PIN, dutyCycle);
@@ -148,26 +142,62 @@ void steerTo(const int targetADC, const int tolerance)
   // Set motion direction
   digitalWrite(DIR_PIN, tripLength > 0 ? RIGHT : LEFT);
 
-  // Follow a trapezoid or pyramid ramp plan
-
-  // 1. Ramp up and check remaining distance
+  // Ramp up and check remaining distance
   int rampUpLength = rampUp(targetADC, tripLength/2);
   int remainingDistance = targetADC - angleADC;
 
-  // 2. Run at plateau speed if move is long enough (returns immediately if not)
+  // Run at plateau speed if move is long enough (returns immediately if not)
   int flatDistance = abs(remainingDistance) - abs(rampUpLength);
   int flatTopLength = flatTop(flatDistance);
 
+  // Ramp down and compute actual distance traveled
   int rampDownLength = rampDown(1); // Wait only 1ms between PWM steps
   int total = rampUpLength + flatTopLength + rampDownLength;
 
-  Serial.print("tripLength: ");
-  Serial.print(tripLength);
-  Serial.print(", traveled: ");
-  Serial.print(total);
-  Serial.println();
+  String s = String("\n\rtripLength: ") + tripLength
+             + String("; traveled: ") + total
+             + String(" ADC: ") + angleADC;
+  Serial.println(s);
 }
 
+bool inBounds(int target)
+{
+  if (target < 370 || target > 900)
+  {
+    Serial.print("Target value out of range.");
+    return false;
+  }
+  return true;
+}
+
+void handleByte()
+{
+  byte b = Serial.read();
+  if (isDigit(b))
+  {
+    byte digit = b - 48;
+    Serial.print(digit);
+    cmd += digit;
+  }
+  if (b == '\r' || b == '\n')
+  {
+    int target = cmd.toInt();
+    if (inBounds(target))
+    {
+      Serial.print("steerTo ");
+      Serial.println(target);
+      byte corrections = 0;
+      while (abs(angleADC - target) > 10)
+      {
+        if (corrections > 2)
+          break;
+        steerTo(target, 10);
+        corrections++;
+      }
+    }
+    cmd = "";
+  }
+}
 
 void setup()
 {
@@ -188,67 +218,12 @@ void setup()
   TCCR1B |= (1 << CS11); // 31350/8 = 3918 Hz
 }
 
-
 void loop()
 {
   updateADC();
 
-  if (Serial.available() > 0)
+  while (Serial.available() > 0)
   {
-    rxByte = Serial.read();
-    if (rxByte == 'd') // change rotation direction
-    {
-      direction = digitalRead(DIR_PIN);
-      direction = !direction;
-      digitalWrite(DIR_PIN, direction);
-      Serial.print("direction: ");
-      Serial.println(direction);
-    }
-    if (rxByte == 'g') // go in current direction for 500 ms
-    {
-      Serial.println("motor on");
-      for (int i=0; i<256; i++)
-      {
-        wait(dt);
-        analogWrite(PWM_PIN, i);
-      }
-      for (int i=255; i>=0; i--)
-      {
-        wait(dt);
-        analogWrite(PWM_PIN, i);
-      }
-
-      Serial.println("motor off");
-      analogWrite(PWM_PIN, 0); // Disable motor
-    }
-    if (isDigit(rxByte))
-    {
-      byte digit = rxByte - 48;
-      Serial.print(digit);
-      cmd += digit;
-    }
-    if (rxByte == '\r' || rxByte == '\n')
-    {
-      int target = cmd.toInt();
-      Serial.println();
-      Serial.print("cmd: ");
-      Serial.println(cmd);
-      Serial.print("target: ");
-      Serial.println(target);
-
-      if (target < 370 || target > 900)
-      {
-        Serial.print("Invalid target value: ");
-        Serial.println(target);
-      }
-      else
-      {
-        Serial.print("steerTo ");
-        Serial.println(target);
-        steerTo(target, 10);
-      }
-      cmd = "";
-    }
-
+    handleByte();
   }
 }
