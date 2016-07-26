@@ -1,5 +1,8 @@
 // Arduino code for steering control unit
 
+#define ENC_PIN_A  2  // INT0/PD2
+#define ENC_PIN_B  3  // INT1/PD3
+
 #define ENABLE_PIN  9   // Asserted low on stepper driver
 #define DIR_PIN    10   // Pin controlling rotation direction
 #define STEP_PIN   11   // INT1/PB3/OC2
@@ -17,6 +20,11 @@ unsigned int angleADC = 0;
 // Steering angle limits as ADC readings. Empirically determined.
 int maxLeftADC = 577;
 int maxRightADC = 254;
+
+// Quadrature encoder variables - modified in interrupt handlers
+volatile long encoderPos = 0;
+volatile byte prevA = 0, prevB = 0;
+int prevEnc = 0; // Not strictly necessary; just printing to study behavior
 
 // Exponentially weighted moving average for integer data. Used for over-
 // sampling noisy measurements in a time series.
@@ -135,6 +143,12 @@ void setup()
   // Set up count() as an interrupt handler
   attachInterrupt(digitalPinToInterrupt(STEP_PIN), count, FALLING);
 
+  // Quadrature decoder setup
+  prevA = digitalRead(ENC_PIN_A);
+  prevB = digitalRead(ENC_PIN_B);
+  attachInterrupt(digitalPinToInterrupt(ENC_PIN_A), decodeA, RISING);
+  attachInterrupt(digitalPinToInterrupt(ENC_PIN_B), decodeB, CHANGE);
+
   // Wait for serial port to connect
   while (!Serial) {;}
 }
@@ -155,3 +169,14 @@ void count()
 {
   steps++;
 }
+
+// ISRs for quadrature decoder readout
+void decodeA()
+{
+  prevB ? encoderPos-- : encoderPos++;
+}
+void decodeB()
+{
+  prevB = !prevB;
+}
+
