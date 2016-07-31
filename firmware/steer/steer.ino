@@ -20,7 +20,7 @@
 #define ENABLE 1     //   DISABLE = !RESET (low); ENABLE = !RESET (high)
 
 // Maximum steering motor speed (<256)
-#define MAX_DUTY_CYCLE 150
+#define MAX_DUTY_CYCLE 200
 
 // 8 bit PWM value
 byte dutyCycle = 0;
