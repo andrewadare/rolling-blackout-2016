@@ -26,8 +26,9 @@ Serial pc(USBTX, USBRX);
 // ADC for steering angle potentiometer
 AnalogIn ain(A0);
 
-// PWM output to driver for steering motor
-PwmOut steer_pwm(D9);
+// PWM output to motor drivers
+PwmOut steer_pwm(PWM_OUT); // D3 on Nucleo L432KC
+PwmOut throttle_pwm(D6);
 
 // Driver class for Bosch BNO055 absolute orientation sensor
 BNO055 imu(I2C_SDA, I2C_SCL);
@@ -35,9 +36,8 @@ BNO055 imu(I2C_SDA, I2C_SCL);
 // Driver class for Lidar Lite v2 rangefinder
 LidarLitev2 lidar(I2C_SDA, I2C_SCL);
 
-// lidar_mode_pin idles high (2.2k external pullups). Sensor pulls pin low when
-// a new measurement is available.
-DigitalIn lidar_mode_pin(D7);
+// lidar_mode_pin idles high, dropping low when new data is ready to be read.
+DigitalIn lidar_mode_pin(D9);
 
 // Variables for quadrature odometer encoder
 InterruptIn enc_a(D11);
@@ -98,19 +98,21 @@ void print()
 int main()
 {
   pc.baud(115200);
-
-  // Configure LidarLite for continuous mode, which means that a new measurement
-  // will be available each time lidar_mode_pin drops low.
+  timer.start();
 
   if (lidar_attached)
   {
-    pc.printf("Configuring lidar sensor\r\n");
+    // Configure LidarLite for continuous mode, which means that a new measurement
+    // will be available each time lidar_mode_pin drops low.
+    pc.printf("\r\nConfiguring lidar sensor\r\n");
     lidar.configure();
     lidar.beginContinuous();
   }
+
   setup_imu();
-  timer.start();
+
   steer_pwm.period_us(250);
+  throttle_pwm.period_us(250);
 
   // First reading in smoothed time-series average
   pot = ain.read();
@@ -123,8 +125,8 @@ int main()
   enc_b.rise(&decode_b);
   enc_b.fall(&decode_b);
 
-
   pc.printf("Beginning loop\r\n");
+
   while (true)
   {
     pot = alpha*ain.read() + (1 - alpha)*pot;
