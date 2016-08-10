@@ -1,9 +1,13 @@
 #include "mbed.h"
 #include "BNO055.h"
 #include "LidarLitev2.h"
+#include "PIDControl.h"
 
 // Flag indicating whether the LidarLite sensor is hooked up
 const bool lidar_attached = true;
+
+// Sample interval in milliseconds
+const int timestep = 25;
 
 // Most recent lidar distance measurement [cm] and bearing [deg] with respect to
 // vehicle (0 degrees at front of car, increasing clockwise).
@@ -20,6 +24,12 @@ const float alpha = 0.3;
 // Steering angle potentiometer reading in the range [0,1]
 float pot;
 
+// PID gain parameters
+float kp = 0.2, ki = 50, kd = 0;
+
+// Initial PID setpoint
+const float initial_setpoint = 0.5;
+
 // Serial connection to PC over USB
 Serial pc(USBTX, USBRX);
 
@@ -35,6 +45,9 @@ BNO055 imu(I2C_SDA, I2C_SCL);
 
 // Driver class for Lidar Lite v2 rangefinder
 LidarLitev2 lidar(I2C_SDA, I2C_SCL);
+
+// PID controller class for steering (eventually also throttle?)
+PIDControl pid(kp, ki, kd, initial_setpoint, timestep);
 
 // lidar_mode_pin idles high, dropping low when new data is ready to be read.
 DigitalIn lidar_mode_pin(D9);
@@ -79,8 +92,17 @@ void setup_imu()
 
 void print()
 {
+  static int prev_time = 0;
+
+  int now = timer.read_ms();
+
+  if (now - prev_time < timestep)
+  {
+    return;
+  }
+
   pc.printf("t:%d,AMGS:%d%d%d%d,qw:%d,qx:%d,qy:%d,qz:%d,pot:%d,odo:%d,r:%d,b:%d\r\n",
-            timer.read_ms(),
+            now,
             imu.cal.accel,
             imu.cal.mag,
             imu.cal.gyro,
@@ -93,12 +115,20 @@ void print()
             encoder_pos,
             lidar_range,
             lidar_bearing);
+
+  lidar_range = 0; // reset
+
+  prev_time = now;
 }
 
 int main()
 {
   pc.baud(115200);
   timer.start();
+
+  pid.minOutput = 0.0;
+  pid.maxOutput = 1.0;
+  pid.setPID(kp, ki, kd);
 
   if (lidar_attached)
   {
@@ -131,6 +161,11 @@ int main()
   {
     pot = alpha*ain.read() + (1 - alpha)*pot;
 
+    // pid.setpoint = atof(cmd)/1000; // TODO: read from master computer
+
+    pid.update(pot);
+    steer_pwm.write(pid.output);
+
     if (lidar_attached && !lidar_mode_pin)
     {
       lidar_range = lidar.distanceContinuous();
@@ -140,6 +175,5 @@ int main()
     imu.get_calib();
     imu.get_quat();
     print();
-    wait(0.02);
   }
 }
