@@ -6,6 +6,8 @@ define( function( require ) {
   // Modules
   var Compass = require( './Compass' );
   var d3 = require( 'd3' );
+  var IMUCalibration = require( './IMUCalibration' );
+  var PIDSliders = require( './PIDSliders' );
   var SteerIndicator = require( './SteerIndicator' );
   var TiltIndicator = require( './TiltIndicator' );
 
@@ -21,36 +23,6 @@ define( function( require ) {
   var adc2degrees = d3.scale.linear()
     .domain( [ 577, 254 ] )
     .range( [ -30, +30 ] );
-
-  // From a status like 123, return { a: '0', m: '1', g: '2', s: '3' }
-  function unpackStatusCodes( status ) {
-    var s = status.toString();
-    var codes = {};
-    var keys = [ 'a', 'm', 'g', 's' ];
-    var i = 0;
-    while ( s.length < 4 ) {
-      s = '0' + s;
-    }
-    keys.forEach( function( k ) {
-      codes[ k ] = s.charAt( i );
-      i++;
-    } );
-    return codes;
-  }
-
-  function updateCalibration( data ) {
-
-    function textLine( d ) {
-      return d.name + ': ' + d.status;
-    }
-
-    d3.select( 'ul' ).selectAll( 'li' )
-      .data( data )
-      .text( textLine )
-      .enter().append( 'li' )
-      .attr( 'class', 'cal' )
-      .text( textLine );
-  }
 
   // Add a "row" div with a fixed height that spans the page
   var row1Div = body.append( 'div' )
@@ -93,6 +65,7 @@ define( function( require ) {
   var rollIndicator = TiltIndicator();
   var pitchIndicator = TiltIndicator();
   var steerIndicator = SteerIndicator();
+
   compass
     .width( panelWidth - 2 )
     .height( row1Height - 2 )
@@ -121,10 +94,12 @@ define( function( require ) {
   d3.select( '.row1.col3' ).datum( { tilt: 10 } ).call( pitchIndicator );
   d3.select( '.row2.col1' ).datum( { angle: 0 } ).call( steerIndicator );
 
+  PIDSliders.add( panelWidth - 2 );
+
   // Orientation sensor calibration status info
-  d3.select( '.row2.col2' ).append( 'h2' )
+  d3.select( '.row2.col3' ).append( 'h2' )
     .text( 'Orientation sensor calibration status' );
-  d3.select( '.row2.col2' ).append( 'ul' );
+  d3.select( '.row2.col3' ).append( 'ul' );
 
   if ( true ) {
 
@@ -146,24 +121,23 @@ define( function( require ) {
       switch ( msg.type ) {
         case 'quaternions':
 
-          // Update compass and tilt indicators
+          // Update indicators
           d3.select( '.row1.col1' ).datum( { heading: -d.yaw * 180 / Math.PI + 90 } ).call( compass );
           d3.select( '.row1.col2' ).datum( { tilt: d.roll * 180 / Math.PI } ).call( rollIndicator );
           d3.select( '.row1.col3' ).datum( { tilt: -d.pitch * 180 / Math.PI } ).call( pitchIndicator );
+          d3.select( '.row2.col1' ).datum( { angle: adc2degrees( d.sa ) } ).call( steerIndicator );
+          // d3.select( '.row2.col2' ).datum( { } ).call( pidSliders );
 
           // Update calibration status
-          var codes = unpackStatusCodes( d.AMGS );
+          var codes = IMUCalibration.unpackStatusCodes( d.AMGS );
           var data = [
             { name: 'Accel', status: codes.a },
             { name: 'Mag', status: codes.m },
             { name: 'Gyro', status: codes.g },
             { name: 'System', status: codes.s }
           ];
-          updateCalibration( data );
-          // break;
+          IMUCalibration.updateCalibration( data );
 
-        // case 'steering':
-          d3.select( '.row2.col1' ).datum( { angle: adc2degrees( d.sa ) } ).call( steerIndicator );
           break;
       }
     };
@@ -175,7 +149,7 @@ define( function( require ) {
       d3.select( '.row1.col1' ).datum( { heading: 360 * Math.sin( j / 100 ) } ).call( compass );
       d3.select( '.row1.col3' ).datum( { tilt: 10 * Math.sin( j / 5 ) } ).call( pitchIndicator );
       d3.select( '.row2.col1' ).datum( { angle: 30 * Math.cos( j / 10 ) } ).call( steerIndicator );
-      updateCalibration( [
+      IMUCalibration.updateCalibration( [
         { name: 'Accel', status: Math.floor( 3 * Math.random() ) },
         { name: 'Mag', status: Math.floor( 3 * Math.random() ) },
         { name: 'Gyro', status: Math.floor( 3 * Math.random() ) },
