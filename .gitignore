@@ -1,3 +1,7 @@
+
+# Folder attributes file (Apple)
+.DS_Store
+
 control/BNO055
 control/LidarLitev2
 control/mbed
