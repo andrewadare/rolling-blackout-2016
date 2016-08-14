@@ -160,10 +160,10 @@ define( function( require ) {
             { name: 'System', status: codes.s }
           ];
           updateCalibration( data );
-          break;
+          // break;
 
-        case 'steering':
-          d3.select( '.row2.col1' ).datum( { angle: adc2degrees( d.adc ) } ).call( steerIndicator );
+        // case 'steering':
+          d3.select( '.row2.col1' ).datum( { angle: adc2degrees( d.sa ) } ).call( steerIndicator );
           break;
       }
     };
