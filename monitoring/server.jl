@@ -171,20 +171,6 @@ function process_streams(client::WebSockets.WebSocket, mcu_nodes::Array{SerialNo
     end
 end
 
-function readuntil(sp::SerialPort, delim::Char, timeout_ms::Integer)
-    out = Char[]
-    start_time = time_ns()
-    while !eof(sp)
-        (time_ns() - start_time)/1e6 > timeout_ms && break
-        if nb_available(sp) > 0
-            c = read(sp, Char)
-            push!(out, c)
-            c == delim && break
-        end
-    end
-    return join(out)
-end
-
 """
 Send data to stdout instead of browser. Useful for debugging.
 """
