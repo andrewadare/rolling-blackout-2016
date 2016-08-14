@@ -137,7 +137,7 @@ function main()
     # Parse built-in ARGS array according to arg_parse_settings. Returns a Dict.
     args = parse_args(ARGS, arg_parse_settings)
 
-    # Show the args that will be applied
+    println("\nConfiguration parameters:")
     [println("  $key  =>  $(repr(val))") for (key, val) in args]
 
     # Labels for various quantities in incoming data stream
