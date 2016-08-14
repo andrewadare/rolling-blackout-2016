@@ -32,6 +32,8 @@ const float initial_setpoint = 0.5;
 
 // Serial connection to PC over USB
 Serial pc(USBTX, USBRX);
+char cmd[100];
+char steer_cmd[100];
 
 // ADC for steering angle potentiometer
 AnalogIn ain(A0);
@@ -101,7 +103,7 @@ void print()
     return;
   }
 
-  pc.printf("t:%d,AMGS:%d%d%d%d,qw:%d,qx:%d,qy:%d,qz:%d,pot:%d,odo:%d,r:%d,b:%d\r\n",
+  pc.printf("t:%d,AMGS:%d%d%d%d,qw:%d,qx:%d,qy:%d,qz:%d,sa:%d,odo:%d,r:%d,b:%d\r\n",
             now,
             imu.cal.accel,
             imu.cal.mag,
@@ -119,6 +121,65 @@ void print()
   lidar_range = 0; // reset
 
   prev_time = now;
+}
+
+void handle_byte(char b)
+{
+  switch (b)
+  {
+  case 'p': // increase kp
+    kp += 0.01;
+    break;
+  case 'l': // decrease kp
+    kp -= 0.01;
+    break;
+  case 'i': // increase ki
+    ki += 1.0;
+    break;
+  case 'k': // decrease ki
+    ki -= 1.0;
+    break;
+  case 'd': // increase kd
+    kd += 0.001;
+    break;
+  case 'c': // decrease kd
+    kd -= 0.001;
+    break;
+
+  // Input completed - convert to a float in [0,1] and update setpoint
+  case '\r':
+  case '\n':
+    pid.setpoint = atof(cmd)/1000;
+    pid.clamp(pid.setpoint, pid.minOutput, pid.maxOutput);
+    pc.printf("\r\nsetpoint: %f\r\n", pid.setpoint);
+    cmd[0] = 0; // Reset for next use
+    break;
+
+  // Check if byte is a digit (0-9 = ASCII code point 48-57). If so, decode to
+  // the intended decimal integer value and append to the cmd string.
+  case 48:
+  case 49:
+  case 50:
+  case 51:
+  case 52:
+  case 53:
+  case 54:
+  case 55:
+  case 56:
+  case 57:
+    int digit = b - 48;
+    pc.printf("%d", digit);
+    sprintf(cmd, "%s%d", cmd, digit);
+    break;
+  default:
+  // Assume (without checking) input is one of p,l,i,k,d,c and update.
+    pid.setPID(kp, ki, kd);
+    pc.printf("kp,ki,kd: %f %f %f; p,i,d: %f %f %f; setpoint: %f; output: %f\r\n",
+              kp,ki,kd,
+              pid.kp,pid.ki,pid.kd,
+              pid.setpoint,
+              pid.output);
+  }
 }
 
 int main()
