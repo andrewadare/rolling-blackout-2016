@@ -7,7 +7,6 @@ define( function( require ) {
   var Compass = require( './Compass' );
   var d3 = require( 'd3' );
   var IMUCalibration = require( './IMUCalibration' );
-  var PIDSliders = require( './PIDSliders' );
   var SteerIndicator = require( './SteerIndicator' );
   var TiltIndicator = require( './TiltIndicator' );
 
@@ -20,9 +19,9 @@ define( function( require ) {
   var row2Height = row1Height / 2;
 
   // Converts from digitized steering angle in ADC increments to degrees
-  var adc2degrees = d3.scale.linear()
-    .domain( [ 577, 254 ] )
-    .range( [ -30, +30 ] );
+  // var adc2degrees = d3.scale.linear()
+  //   .domain( [ 577, 254 ] )
+  //   .range( [ -30, +30 ] );
 
   // Add a "row" div with a fixed height that spans the page
   var row1Div = body.append( 'div' )
@@ -94,8 +93,6 @@ define( function( require ) {
   d3.select( '.row1.col3' ).datum( { tilt: 10 } ).call( pitchIndicator );
   d3.select( '.row2.col1' ).datum( { angle: 0 } ).call( steerIndicator );
 
-  PIDSliders.add( panelWidth - 2 );
-
   // Orientation sensor calibration status info
   d3.select( '.row2.col3' ).append( 'h2' )
     .text( 'Orientation sensor calibration status' );
@@ -125,8 +122,7 @@ define( function( require ) {
           d3.select( '.row1.col1' ).datum( { heading: -d.yaw * 180 / Math.PI + 90 } ).call( compass );
           d3.select( '.row1.col2' ).datum( { tilt: d.roll * 180 / Math.PI } ).call( rollIndicator );
           d3.select( '.row1.col3' ).datum( { tilt: -d.pitch * 180 / Math.PI } ).call( pitchIndicator );
-          d3.select( '.row2.col1' ).datum( { angle: adc2degrees( d.sa ) } ).call( steerIndicator );
-          // d3.select( '.row2.col2' ).datum( { } ).call( pidSliders );
+          d3.select( '.row2.col1' ).datum( { angle: d.sa } ).call( steerIndicator );
 
           // Update calibration status
           var codes = IMUCalibration.unpackStatusCodes( d.AMGS );
@@ -142,7 +138,7 @@ define( function( require ) {
       }
     };
   }
-  // Fake, nonsensical animation loop for basic testing
+  // Fake and nonsensical animation loop for basic testing
   else {
     var j = 0;
     setInterval( function() {
