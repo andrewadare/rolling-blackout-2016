@@ -1,5 +1,23 @@
 // Sliders for tuning PID parameters
 
+// Example: add sliders to user code; send message when slider value changes
+//      PIDSliders.add( panelWidth - 2 );
+//
+//      // Bind update callbacks to slider values for each slider.
+//      [ 'kp', 'ki', 'kd' ].forEach( function( kx ) {
+//        d3.select( '#' + kx + '-steer' ).on( 'input', function() {
+//          PIDSliders.updateSteerPidCoeff( +this.value, kx );
+//
+//          ws.send( JSON.stringify( {
+//            type: 'update',
+//            text: 'steer-' + kx,
+//            value: +this.value,
+//            id: 0,
+//            date: Date.now()
+//          } ) );
+//        } );
+//      } );
+
 define( function( require ) {
   'use strict';
 
@@ -16,53 +34,31 @@ define( function( require ) {
           .html( label + ' = <span id=\"' + label + '-steer-value\"></span>' )
           .style( {
             'display': 'inline-block',
-            'width': width + 'px'
+            'text-align': 'right',
+            'width': width / 2 + 'px'
           } );
         p.append( 'input' )
           .attr( {
             'type': 'range',
             'min': 0,
             'max': 200,
+            'value': 100,
             'id': label + '-steer'
           } );
 
       } );
+    },
 
-
-      updateSteerKp( 5 );
-      updateSteerKi( 100 );
-      updateSteerKd( 1 );
-
-      d3.select( '#kp-steer' ).on( 'input', function() {
-        updateSteerKp( +this.value );
-      } );
-      d3.select( '#ki-steer' ).on( 'input', function() {
-        updateSteerKi( +this.value );
-      } );
-      d3.select( '#kd-steer' ).on( 'input', function() {
-        updateSteerKd( +this.value );
-      } );
-
-      function updateSteerKp( kp ) {
-        d3.select( '#kp-steer-value' ).text( kp );
-        d3.select( '#kp-steer' ).property( 'value', kp );
-        console.log( 'kp = ', kp );
-      }
-
-      function updateSteerKi( ki ) {
-        d3.select( '#ki-steer-value' ).text( ki );
-        d3.select( '#ki-steer' ).property( 'value', ki );
-        console.log( 'ki = ', ki );
-      }
-
-      function updateSteerKd( kd ) {
-        d3.select( '#kd-steer-value' ).text( kd );
-        d3.select( '#kd-steer' ).property( 'value', kd );
-        console.log( 'kd = ', kd );
-      }
+    /**
+     * Callback to update slider value
+     *
+     * @param  {number} coeff - PID coefficient
+     * @param  {string} kpid - one of 'kp', 'ki', or 'kd'
+     */
+    updateSteerPidCoeff: function( coeff, kpid ) {
+      d3.select( '#' + kpid + '-steer-value' ).text( coeff );
+      d3.select( '#' + kpid + '-steer' ).property( 'value', coeff );
     }
-
-
   };
 } );
 
