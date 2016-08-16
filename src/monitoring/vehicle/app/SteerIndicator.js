@@ -8,6 +8,8 @@ define( function( require ) {
   var Arrowhead = require( './Arrowhead' );
 
   function SteerIndicator() {
+
+    // Default dimensions
     var width = 250;
     var height = 250;
 
@@ -22,7 +24,7 @@ define( function( require ) {
       selection.each( function( data, i ) {
 
         // Outer radius of polar plot
-        var r = 0.75 * width;
+        var r = 0.6 * width;
 
         //
         // DATA JOIN
@@ -41,16 +43,15 @@ define( function( require ) {
           .style( 'background-color', 'white' )
           .append( 'g' );
 
-        // SVG element translated to the pivot point of the compass needle.
+        // SVG element translated to the pivot point of the compass needle (see update function for transform)
         var origin = gEnter.append( 'g' )
           .attr( 'class', 'origin' );
-        // .attr( 'transform', 'translate(' + width / 2 + ',' + 1.8 * height + ')' );
 
         // Text labels for degrees
         origin.append( 'g' )
           .attr( 'class', 'a axis' )
           .selectAll( 'g' )
-          .data( d3.range( -30, +35, 5 ) )
+          .data( d3.range( -45, +50, 5 ) )
           .enter().append( 'g' )
           .attr( 'transform', function( d ) {
             return 'rotate(' + ( d - 90 ) + ')';
@@ -68,7 +69,8 @@ define( function( require ) {
         origin.append( 'svg:text' )
           .attr( 'class', 'readout' )
           .attr( 'transform', function() {
-            return 'translate(' + ( -0.6 * r ) + ',' + ( -1.1 * r ) + ')';
+            // return 'translate(' + ( -0.6 * r ) + ',' + ( -1.1 * r ) + ')';
+            return 'translate(' + ( -width/2 + 10 ) + ',' + ( -1.5*height + 25 ) + ')';
           } )
           .text( function() {
             return title + ': ' + '0°';
@@ -109,7 +111,7 @@ define( function( require ) {
         // Update the needle origin
         g.select( '.origin' )
           .attr( 'transform',
-            'translate(' + ( width / 2 - margin.left ) + ',' + ( 1.8 * height - margin.top ) + ')' );
+            'translate(' + ( width / 2 - margin.left ) + ',' + ( 1.5 * height - margin.top ) + ')' );
 
         // Update pointer angle
         g.select( '.pointer' )
