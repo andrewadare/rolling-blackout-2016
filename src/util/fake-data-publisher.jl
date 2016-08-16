@@ -34,18 +34,19 @@ function rand_quat()
 end
 
 start = time_ms()
-steering_angle = 400
+steering_angle = 0
 
 while true
     t = time_ms() - start
     a = rand(0:3)
     qw, qx, qy, qz = rand_quat()
-    steering_angle += rand(-2:2)
+    steering_angle += 0.5*rand(-1:1)
+    steering_angle = clamp(steering_angle, -45, 45)
     line = "t:$t,AMGS:$(a)333,qw:$qw,qx:$qx,qy:$qy,qz:$qz,sa:$steering_angle,odo:0,r:0,b:0"
     ZMQ.send(socket, line)
     sleep(0.025)
 end
 
-# Never reached, but keep as an example
+# Never reached
 ZMQ.close(socket)
 ZMQ.close(context)
