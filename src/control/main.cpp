@@ -14,8 +14,8 @@ const int timestep = 25;
 // Smoothing parameter for exponentially-weighted moving average s[t] of
 // time series measurements y[t]:
 //     s[t] = alpha*y[t-1] + (1-alpha)*s[t-1], 0 < alpha <= 1
-// Small alpha: strong smoothing, with slower response to trends;
-// Large alpha: less noise damping but faster response.
+// Small alpha: strong smoothing, with slower response to trends
+// Large alpha: less noise damping but faster response
 const float alpha = 0.3;
 
 // Steering angle potentiometer reading in the range [0,1]
@@ -72,7 +72,9 @@ volatile uint8_t prev_b = 0;
 // Status indicator
 DigitalOut led(LED1);
 
-Timer timer;
+// Timers
+Timer main_timer;  // Records overall time and ms intervals - don't reset
+Timer pulse_timer; // Measures pulse widths - frequently reset
 
 // Interrupt handlers for channels A and B of quadrature rotary encoder
 void decode_a()
@@ -88,11 +90,12 @@ void decode_b()
 // Interrupt handlers to measure PWM pulse width
 void on_lidar_pulse_rise()
 {
-  lidar_pulse_start = timer.read_us();
+  lidar_pulse_start = pulse_timer.read_us();
 }
 void on_lidar_pulse_fall()
 {
-  lidar_pulse_width = timer.read_us() - lidar_pulse_start;
+  lidar_pulse_width = pulse_timer.read_us() - lidar_pulse_start;
+  pulse_timer.reset(); // to avoid rollover (resumes from 0)
 }
 
 void setup_imu()
@@ -118,7 +121,7 @@ void print()
 {
   static int prev_time = 0;
 
-  int now = timer.read_ms();
+  int now = main_timer.read_ms();
 
   if (now - prev_time < timestep)
   {
@@ -146,7 +149,8 @@ void print()
 int main()
 {
   pc.baud(115200);
-  timer.start();
+  main_timer.start();
+  pulse_timer.start();
 
   pid.minOutput = 0.0;
   pid.maxOutput = 1.0;
