@@ -107,6 +107,9 @@ function send_output(d, destination::String)
         println()
     else
         # TODO File output - use destination as a file name
+        open(destination, "w") do io
+            write(io, data)
+        end
     end
 end
 
