@@ -44,7 +44,7 @@ define( function( require ) {
         // Otherwise, create the root SVG group element.
         // This <g> is will be offset by the margins.
         var gEnter = svg.enter().append( 'svg' )
-          .style( 'background-color', 'white' )
+          .attr( 'class', 'panel' )
           .append( 'g' );
 
         // SVG element translated to the pivot point of the compass needle.
@@ -62,8 +62,7 @@ define( function( require ) {
           } )
           .text( function( d ) {
             return title + ': ' + Math.round( d.tilt ) + '°';
-          } )
-          .attr( 'font-size', '20px' );
+          } );
 
         // Text labels for degrees
         origin.append( 'g' )
@@ -105,8 +104,8 @@ define( function( require ) {
 
         // Outermost ring
         horizon.append( 'circle' )
+          .attr('class', 'bezel')
           .attr( 'r', r )
-          .attr( 'stroke', '#777' )
           .attr( 'fill', 'url(#grad)' );
 
         horizon.selectAll( '.side-labels' )
@@ -118,16 +117,13 @@ define( function( require ) {
           } )
           .text( function( d ) {
             return d.label;
-          } )
-          .attr( 'font-size', '16px' );
+          } );
 
         // SVG arrowhead
         horizon.append( Arrowhead() );
 
         // Pointer arrow
         horizon.append( 'line' )
-          .style( 'stroke', 'black' )
-          .style( 'stroke-width', '4px' )
           .attr( {
             'x1': 0,
             'y1': -0.6 * r,

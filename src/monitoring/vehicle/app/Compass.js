@@ -46,7 +46,7 @@ define( function( require ) {
 
         // Otherwise, create the root SVG group element.
         var gEnter = svg.enter().append( 'svg' )
-          .style( 'background-color', 'white' )
+          .attr( 'class', 'panel' )
           .append( 'g' );
 
         // SVG element translated to the pivot point of the compass needle.
@@ -64,9 +64,7 @@ define( function( require ) {
         // Keeping for possible future use as a speed scale (arrow length could be
         // used as a speed indicator)
         origin.append( 'g' )
-          .attr( 'class', 'r axis' )
-          .style( 'fill', 'none' )
-          .style( 'stroke', '#777' )
+          .attr( 'class', 'bezel compass' )
           .selectAll( 'g' )
           .data( r.ticks( 1 ).slice( 1 ) ) // Increase r.ticks for more rings
           .enter().append( 'g' )
@@ -95,12 +93,10 @@ define( function( require ) {
           } );
 
         // SVG arrowhead
-        origin.append(Arrowhead());
+        origin.append( Arrowhead() );
 
         // Compass arrow
         origin.append( 'line' )
-          .style( 'stroke', 'black' )
-          .style( 'stroke-width', '4px' )
           .attr( {
             'x1': 0,
             'y1': 0,
@@ -118,8 +114,7 @@ define( function( require ) {
           } )
           .text( function() {
             return title + ': ' + '0°';
-          } )
-          .attr( 'font-size', '20px' );
+          } );
 
         //
         // UPDATE
@@ -138,8 +133,7 @@ define( function( require ) {
           } )
           .text( function( d ) {
             return title + ': ' + Math.round( d.heading ) + '°';
-          } )
-          .attr( 'font-size', '20px' );
+          } );
 
         // Update the outer dimensions
         svg.attr( 'width', width )
@@ -188,3 +182,4 @@ define( function( require ) {
 
   return Compass;
 } );
+

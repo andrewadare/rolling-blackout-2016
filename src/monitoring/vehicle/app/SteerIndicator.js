@@ -40,7 +40,7 @@ define( function( require ) {
         // Otherwise, create the root SVG group element.
         // This <g> is will be offset by the margins.
         var gEnter = svg.enter().append( 'svg' )
-          .style( 'background-color', 'white' )
+          .attr( 'class', 'panel' )
           .append( 'g' );
 
         // SVG element translated to the pivot point of the compass needle (see update function for transform)
@@ -74,8 +74,7 @@ define( function( require ) {
           } )
           .text( function() {
             return title + ': ' + '0°';
-          } )
-          .attr( 'font-size', '20px' );
+          } );
 
         // Node containing pointer arrow
         var pointer = origin.append( 'g' )
@@ -85,8 +84,6 @@ define( function( require ) {
 
         // Pointer arrow line
         pointer.append( 'line' )
-          .style( 'stroke', 'black' )
-          .style( 'stroke-width', '4px' )
           .attr( {
             'x1': 0,
             'y1': -0.75 * r,
