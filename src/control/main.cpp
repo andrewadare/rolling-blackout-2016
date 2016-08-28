@@ -36,14 +36,11 @@ char steer_cmd[100];
 AnalogIn ain(A0);
 
 // PWM output to motor drivers
-PwmOut steer_pwm(PWM_OUT); // D3 on Nucleo L432KC
-PwmOut throttle_pwm(D6);
+PwmOut steer_pwm(D3);
+PwmOut throttle_pwm(D10);
 
 // Driver class for Bosch BNO055 absolute orientation sensor
 BNO055 imu(I2C_SDA, I2C_SCL);
-
-// Driver class for Lidar Lite v2 rangefinder
-// LidarLitev2 lidar(I2C_SDA, I2C_SCL);
 
 // PID controller class for steering (eventually also throttle?)
 PIDControl pid(kp, ki, kd, initial_setpoint, timestep);
@@ -52,9 +49,13 @@ PIDControl pid(kp, ki, kd, initial_setpoint, timestep);
 PIDTuner tuner(pid);
 #endif
 
-// Lidar sensor bearing angle [deg] with respect to vehicle centerline
-// (0 degrees at front of car, increasing clockwise).
-float lidar_bearing = 0;
+// Lidar angle sensor pins and bearing angle [deg] with respect to vehicle
+// centerline (0 degrees at front of car, increasing clockwise).
+InterruptIn lidar_enc_pin(D0);
+InterruptIn lidar_rev_pin(D1);
+volatile int lidar_angle_counter = 0;
+volatile int lidar_angle_counter_max = 0; // tmp
+const int lidar_encoder_period = 1346; // Counts per rotation (empirical)
 
 // Read LidarLite v2 sensor in PWM mode (I2C interface was flaky!)
 // Measured pulse width in microseconds = distance measurement in mm.
@@ -98,6 +99,16 @@ void on_lidar_pulse_fall()
   pulse_timer.reset(); // to avoid rollover (resumes from 0)
 }
 
+void on_new_revolution()
+{
+  lidar_angle_counter_max = lidar_angle_counter; // tmp
+  lidar_angle_counter = 0;
+}
+void on_lidar_encoder_rise()
+{
+  lidar_angle_counter++;
+}
+
 void setup_imu()
 {
   pc.printf("Configuring IMU sensor\r\n");
@@ -128,6 +139,10 @@ void print()
     return;
   }
 
+  // Compute lidar bearing angle in degrees from encoder pulse count
+  int lidar_bearing = float(lidar_angle_counter)/lidar_encoder_period * 360;
+  if (lidar_bearing > 359) lidar_bearing = 359;
+
   pc.printf("t:%d,AMGS:%d%d%d%d,qw:%d,qx:%d,qy:%d,qz:%d,sa:%d,odo:%d,r:%d,b:%d\r\n",
             now,
             imu.cal.accel,
@@ -142,6 +157,8 @@ void print()
             encoder_pos,
             lidar_pulse_width, // = range in mm
             lidar_bearing);
+
+  pc.printf("%d", lidar_angle_counter_max); // tmp
 
   prev_time = now;
 }
@@ -175,6 +192,10 @@ int main()
   // Attach interrupt handlers for LidarLite PWM (mode) pin.
   lidar_pulse_pin.rise(&on_lidar_pulse_rise);
   lidar_pulse_pin.fall(&on_lidar_pulse_fall);
+
+  // Interrupt handlers for lidar angle counters
+  lidar_enc_pin.rise(&on_lidar_encoder_rise);
+  lidar_rev_pin.rise(&on_new_revolution);
 
   pc.printf("Beginning loop\r\n");
 
