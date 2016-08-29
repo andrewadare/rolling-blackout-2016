@@ -42,7 +42,7 @@ define( function( require ) {
         //
 
         // Otherwise, create the root SVG group element.
-        // This <g> is will be offset by the margins.
+        // This <g> will be offset by the margins.
         var gEnter = svg.enter().append( 'svg' )
           .attr( 'class', 'panel' )
           .append( 'g' );
@@ -104,7 +104,7 @@ define( function( require ) {
 
         // Outermost ring
         horizon.append( 'circle' )
-          .attr('class', 'bezel')
+          .attr( 'class', 'bezel' )
           .attr( 'r', r )
           .attr( 'fill', 'url(#grad)' );
 

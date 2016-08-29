@@ -24,7 +24,7 @@ define( function( require ) {
       selection.each( function( data, i ) {
 
         // Outer radius of polar plot
-        var r = 0.6 * width;
+        var r = 1.2 * height;
 
         //
         // DATA JOIN
@@ -56,7 +56,7 @@ define( function( require ) {
           .attr( 'transform', function( d ) {
             return 'rotate(' + ( d - 90 ) + ')';
           } ).append( 'text' )
-          .attr( 'x', r + 10 )
+          .attr( 'x', 1.1 * r )
           .attr( 'dy', '.35em' )
           .style( 'text-anchor', function( d ) {
             return 'end';
@@ -69,8 +69,7 @@ define( function( require ) {
         origin.append( 'svg:text' )
           .attr( 'class', 'readout' )
           .attr( 'transform', function() {
-            // return 'translate(' + ( -0.6 * r ) + ',' + ( -1.1 * r ) + ')';
-            return 'translate(' + ( -width/2 + 10 ) + ',' + ( -1.5*height + 25 ) + ')';
+            return 'translate(' + ( -width / 2 + 10 ) + ',' + ( -1.35 * height ) + ')';
           } )
           .text( function() {
             return title + ': ' + '0°';
