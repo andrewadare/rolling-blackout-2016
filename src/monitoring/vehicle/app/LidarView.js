@@ -146,7 +146,7 @@ define( function( require ) {
         .attr( 'r', 0 )
         .transition()
         .duration( 750 )
-        .attr( 'r', 4 )
+        .attr( 'r', 2 )
         .attr( { 'cx': x, 'cy': y } )
         .attr( 'class', 'lidar-points' );
     };

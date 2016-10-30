@@ -128,9 +128,7 @@ define( function( require ) {
     .text( 'Orientation sensor calibration status' );
   d3.select( '.row2.col4' ).append( 'ul' );
 
-  // var rbuf = new RingBuffer();
-
-  if ( false ) {
+  if ( true ) {
 
     // Initiate a WebSocket connection
     var ws = new WebSocket( 'ws://' + window.location.host );
@@ -143,12 +141,18 @@ define( function( require ) {
       } ) );
     };
 
+    var lidarData = new LidarData( 50 );
+
     // Handler for messages received from server
     ws.onmessage = function( event ) {
       var msg = JSON.parse( event.data );
       var d = msg.data;
       switch ( msg.type ) {
         case 'quaternions':
+
+          // Convert range to meters
+          lidarData.add( { r: d.r / 1000, b: d.b } );
+          lidarView.draw( lidarData.data );
 
           // Update indicators
           d3.select( '.row2.col1' ).datum( { heading: -d.yaw * 180 / Math.PI + 90 } ).call( compass );
@@ -173,15 +177,14 @@ define( function( require ) {
   // Fake and nonsensical animation loop for basic testing
   else {
     var j = 0;
-    var fld = new LidarData( 90 );
     var angle = 356;
 
     setInterval( function() {
 
-      fld.add( { r: 10 + 5 * Math.cos( j / 100 ) * Math.random(), b: angle } );
+      lidarData.add( { r: 10 + 5 * Math.cos( j / 100 ) * Math.random(), b: angle } );
       angle = angle > 0 ? angle - 4 : 356;
 
-      lidarView.draw( fld.data );
+      lidarView.draw( lidarData.data );
 
       d3.select( '.row2.col1' ).datum( { heading: 360 * Math.sin( j / 100 ) } ).call( compass );
       d3.select( '.row2.col3' ).datum( { tilt: 10 * Math.sin( j / 5 ) } ).call( pitchIndicator );

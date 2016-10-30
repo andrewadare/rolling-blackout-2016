@@ -8,8 +8,7 @@
 #endif
 
 // Sample interval in milliseconds
-const int timestep = 25;
-
+const int timestep = 20;
 
 // Smoothing parameter for exponentially-weighted moving average s[t] of
 // time series measurements y[t]:
@@ -114,18 +113,36 @@ void setup_imu()
   pc.printf("Configuring IMU sensor\r\n");
   imu.reset();
   int timeout_counter = 0;
+
+  // Try for 3 seconds to connect, then start printing errors
   while (!imu.check())
   {
     led = !led;
     wait(0.1);
     timeout_counter++;
-    if (timeout_counter > 100)
+    if (timeout_counter > 30)
     {
       pc.printf("ERROR: Problem connecting to orientation sensor\r\n");
     }
   }
   led.write(0);
   imu.setmode(OPERATION_MODE_NDOF);
+
+  // Display sensor information
+  pc.printf("BNO055 found\r\n\r\n");
+  pc.printf("Chip          ID: %d\r\n",imu.ID.id);
+  pc.printf("Accelerometer ID: %d\r\n",imu.ID.accel);
+  pc.printf("Gyroscope     ID: %d\r\n",imu.ID.gyro);
+  pc.printf("Magnetometer  ID: %d\r\n\r\n",imu.ID.mag);
+  pc.printf("Firmware version v%d.%0d\r\n",imu.ID.sw[0],imu.ID.sw[1]);
+  pc.printf("Bootloader version v%d\r\n\r\n",imu.ID.bootload);
+  // Display chip serial number
+  for (int i = 0; i<4; i++)
+  {
+    pc.printf("%d.%d.%d.%d\r\n",imu.ID.serial[i*4],imu.ID.serial[i*4+1],imu.ID.serial[i*4+2],imu.ID.serial[i*4+3]);
+  }
+  pc.printf("\r\n");
+  wait(10);
 }
 
 void print()
@@ -140,7 +157,7 @@ void print()
   }
 
   // Compute lidar bearing angle in degrees from encoder pulse count
-  int lidar_bearing = float(lidar_angle_counter)/lidar_encoder_period * 360;
+  int lidar_bearing = 359 - float(lidar_angle_counter)/lidar_encoder_period * 360;
   if (lidar_bearing > 359) lidar_bearing = 359;
 
   pc.printf("t:%d,AMGS:%d%d%d%d,qw:%d,qx:%d,qy:%d,qz:%d,sa:%d,odo:%d,r:%d,b:%d\r\n",
@@ -158,7 +175,7 @@ void print()
             lidar_pulse_width, // = range in mm
             lidar_bearing);
 
-  pc.printf("%d", lidar_angle_counter_max); // tmp
+  // pc.printf("%d", lidar_angle_counter_max); // tmp
 
   prev_time = now;
 }
