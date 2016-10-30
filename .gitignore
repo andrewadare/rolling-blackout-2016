@@ -2,6 +2,9 @@
 # Folder attributes file (Apple)
 .DS_Store
 
+# mbed build artifacts directory
+.build
+
 control/BNO055
 control/LidarLitev2
 control/mbed
