@@ -175,8 +175,6 @@ void print()
             lidar_pulse_width, // = range in mm
             lidar_bearing);
 
-  // pc.printf("%d", lidar_angle_counter_max); // tmp
-
   prev_time = now;
 }
 
