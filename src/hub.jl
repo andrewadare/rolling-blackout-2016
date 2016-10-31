@@ -57,7 +57,7 @@ function http_responder(request::Request, response::Response)
     for file in files
         if startswith("/$file", request.resource)
             println("serving /", file)
-            response = open(readall, file)
+            response = open(readstring, file)
             return response
         end
     end
