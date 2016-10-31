@@ -67,7 +67,7 @@ function http_responder(request::Request, response::Response)
     return response
 end
 
-function wsserver(http_responder, callback, source, fields)
+function wsserver(http_responder, callback, source, fields, buffered_fields, buffer_length)
 
     wsh = WebSocketHandler() do req, client
         while true
@@ -75,7 +75,7 @@ function wsserver(http_responder, callback, source, fields)
             msg = JSON.parse(String(read(client)))
             if haskey(msg, "text") && msg["text"] == "ready"
                 println("\nReceived update from client: ready")
-                callback(source, fields, client)
+                callback(source, fields, client, buffered_fields, buffer_length)
             end
         end
     end
@@ -102,8 +102,13 @@ get_message(socket::ZMQ.Socket) = unsafe_string(ZMQ.recv(socket))
 get_message(sp::SerialPort) = readuntil(sp, '\n', 100)
 
 function send_output(d, destination::String)
+    msg = Dict{AbstractString, Any}()
+    msg["data"] = d
+    json_msg = JSON.json(msg)
+
     if destination == "console"
-        [Base.print("$k:$(d[k]) ") for k in keys(d)]
+        println(json_msg)
+        # [Base.print("$k:$(d[k]) ") for k in keys(d)]
         println()
     else
         # TODO File output - use destination as a file name
@@ -117,18 +122,54 @@ function send_output(d, client::WebSockets.WebSocket)
     send_json("quaternions", d, client)
 end
 
-function process_stream(source, fields, destination)
+"""
+    source: data source (SerialPort, ZMQ.Socket)
+    fields: array of keys in message
+    destination: message recipient (WebSocket client, output file)
+    buffered_fields: subset of fields to collect into an array
+    buffer_length: number of messages to use for buffering
+
+    Example:
+        If fields = ["a", "b", "c"],
+        buffered_fields = ["c"],
+        and buffer_length = 3,
+        then the resulting JSON output would be structured like this:
+            {a: [1.23], b: [2.34], c: [1.01, 2.56, 3.23]}
+        where the values for a and b are from the most recent message.
+"""
+function process_stream(source, fields, destination, buffered_fields=[], buffer_length=1)
+    output = Dict{String, Vector{AbstractFloat}}()
+    for field in fields
+        output[field] = []
+    end
     while true
         msg = get_message(source)
         d = csv2dict(msg, fields)
         if keys_ok(d, fields)
-            # Get quaternion from dict
-            q = qnorm(d)
 
-            # Add Euler/Tait-Bryan angles
-            d["roll"], d["pitch"], d["yaw"] = to_euler(q)
+            # For the first buffer_length-1 input messages, only fill output
+            # with buffered_fields. On final input message, fill all fields.
+            if length(output[buffered_fields[1]]) < buffer_length - 1
+                for field in buffered_fields
+                    push!(output[field], d[field])
+                end
+            else
+                # Get quaternion from dict, then Euler/Tait-Bryan angles.
+                q = qnorm(d)
+                roll, pitch, yaw = to_euler(q)
+                output["roll"] = [roll]
+                output["pitch"] = [pitch]
+                output["yaw"] = [yaw]
 
-            send_output(d, destination)
+                for field in fields
+                    push!(output[field], d[field])
+                end
+                send_output(output, destination)
+                for field in fields
+                    output[field] = []
+                end
+            end
+
         else
             println("skip $msg")
         end
@@ -145,6 +186,8 @@ function main()
 
     # Labels for various quantities in incoming data stream
     fields = ["t","AMGS","qw","qx","qy","qz","sa","odo","r","b"]
+    buffered_fields = ["r", "b"]
+    buffer_length = 5
 
     # Use fake-data-publisher.jl as data source (test mode) or serial port to
     # vehicle controller module, depending on args
@@ -169,12 +212,12 @@ function main()
     end
 
     if args["monitor"]
-        svr = wsserver(http_responder, process_stream, data_source, fields)
+        svr = wsserver(http_responder, process_stream, data_source, fields, buffered_fields, buffer_length)
 
         println("Serving http://localhost:8000/monitoring/vehicle/index.html")
         HttpServer.run(svr, args["tcp_port"])
     else
-        process_stream(data_source, fields, "console")
+        process_stream(data_source, fields, "console", buffered_fields, buffer_length)
     end
 end
 
