@@ -23,7 +23,7 @@ arg_parse_settings = ArgParseSettings(
         help = "Specify serial port address"
         dest_name = "port_address"
         arg_type = AbstractString
-        default = "/dev/cu.usbmodem1423"
+        default = "/dev/cu.usbmodem1219331"
     "-b", "--baud"
         help = "Specify serial data rate"
         arg_type = Int
