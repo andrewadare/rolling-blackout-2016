@@ -152,23 +152,30 @@ define( function( require ) {
       switch ( msg.type ) {
         case 'quaternions':
 
-          // Convert range to meters
-          lidarData.add( { r: d.r / 100, b: -d.b } );
+          if ( d.r.length !== d.b.length ) {
+            throw new Error( 'length mismatch' );
+          }
+
+          for ( var i = 0; i < d.r.length; i++ ) {
+            // Convert range to meters
+            lidarData.add( { r: d.r[ i ] / 100, b: -d.b[ i ] } );
+          }
+
           lidarView.draw( lidarData.data );
 
           // Update indicators
-          d3.select( '.row2.col1' ).datum( { heading: -d.yaw * 180 / Math.PI + 90 } ).call( compass );
-          d3.select( '.row2.col2' ).datum( { tilt: d.roll * 180 / Math.PI } ).call( rollIndicator );
-          d3.select( '.row2.col3' ).datum( { tilt: -d.pitch * 180 / Math.PI } ).call( pitchIndicator );
-          d3.select( '.row2.col4' ).datum( { angle: d.sa } ).call( steerIndicator );
+          d3.select( '.row2.col1' ).datum( { heading: -d.yaw[0] * 180 / Math.PI + 90 } ).call( compass );
+          d3.select( '.row2.col2' ).datum( { tilt: d.roll[0] * 180 / Math.PI } ).call( rollIndicator );
+          d3.select( '.row2.col3' ).datum( { tilt: -d.pitch[0] * 180 / Math.PI } ).call( pitchIndicator );
+          d3.select( '.row2.col4' ).datum( { angle: d.sa[0] } ).call( steerIndicator );
 
           // Update calibration status
           var codes = IMUCalibration.unpackStatusCodes( d.AMGS );
           var data = [
-            { name: 'Accel', status: codes.a },
-            { name: 'Mag', status: codes.m },
-            { name: 'Gyro', status: codes.g },
-            { name: 'System', status: codes.s }
+            { name: 'Accel', status: codes.a[0] },
+            { name: 'Mag', status: codes.m[0] },
+            { name: 'Gyro', status: codes.g[0] },
+            { name: 'System', status: codes.s[0] }
           ];
           IMUCalibration.updateCalibration( data );
 
