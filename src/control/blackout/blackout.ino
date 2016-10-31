@@ -20,7 +20,7 @@
 #define STEER_ANGLE_PIN A0
 
 // Global constants
-const unsigned int UPDATE_INTERVAL = 20; // Time between communication updates (ms)
+const unsigned int UPDATE_INTERVAL = 40; // Time between communication updates (ms)
 const unsigned int LIDAR_PERIOD = 1346;  // Encoder pulses per rotation
 const unsigned int ADC_FULL_LEFT  = 300; // 10-bit ADC value at -45 degrees TODO: refine
 const unsigned int ADC_FULL_RIGHT = 900; // Same; +45 degrees TODO: refine

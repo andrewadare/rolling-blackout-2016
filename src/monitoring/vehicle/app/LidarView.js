@@ -138,10 +138,15 @@ define( function( require ) {
         .data( rScale.ticks( 5 ) )
         .attr( 'r', rScale );
 
-      origin.selectAll( '.lidar-points' )
-        .data( data )
+      var points = origin.selectAll( '.lidar-points' ).data( data );
+
+      // Update selection
+      points
         .attr( { 'cx': x, 'cy': y } )
-        .attr( 'class', 'lidar-points' )
+        .attr( 'class', 'lidar-points' );
+
+      // Enter selection
+      points
         .enter().append( 'circle' )
         .attr( 'r', 0 )
         .transition()
@@ -149,6 +154,9 @@ define( function( require ) {
         .attr( 'r', 2 )
         .attr( { 'cx': x, 'cy': y } )
         .attr( 'class', 'lidar-points' );
+
+      // Exit selection
+      points.exit().remove();
     };
 
 

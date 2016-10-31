@@ -117,7 +117,7 @@ define( function( require ) {
 
   // Create initial SVG panels
   d3.select( '.row1.col1' ).data( [ {} ] ).call( lidarView );
-  // Map here - TODO
+  // * Map will go here *
   d3.select( '.row2.col1' ).datum( { heading: 0 } ).call( compass );
   d3.select( '.row2.col2' ).datum( { tilt: 0 } ).call( rollIndicator );
   d3.select( '.row2.col3' ).datum( { tilt: 10 } ).call( pitchIndicator );
@@ -128,7 +128,9 @@ define( function( require ) {
     .text( 'Orientation sensor calibration status' );
   d3.select( '.row2.col4' ).append( 'ul' );
 
-  if ( true ) {
+  var useRealData = true;
+
+  if ( useRealData ) {
 
     // Initiate a WebSocket connection
     var ws = new WebSocket( 'ws://' + window.location.host );
@@ -151,7 +153,7 @@ define( function( require ) {
         case 'quaternions':
 
           // Convert range to meters
-          lidarData.add( { r: d.r / 1000, b: d.b } );
+          lidarData.add( { r: d.r / 100, b: -d.b } );
           lidarView.draw( lidarData.data );
 
           // Update indicators
@@ -171,6 +173,9 @@ define( function( require ) {
           IMUCalibration.updateCalibration( data );
 
           break;
+
+        default:
+          // Nothing for now
       }
     };
   }
