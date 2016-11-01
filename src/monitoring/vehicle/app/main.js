@@ -150,23 +150,26 @@ define( function( require ) {
       var msg = JSON.parse( event.data );
       var d = msg.data;
       switch ( msg.type ) {
-        case 'quaternions':
+        case 'vehicle-state':
 
           if ( d.r.length !== d.b.length ) {
             throw new Error( 'length mismatch' );
           }
 
+          var heading = -d.yaw[0] - 90;
+
           for ( var i = 0; i < d.r.length; i++ ) {
             // Convert range to meters
-            lidarData.add( { r: d.r[ i ] / 100, b: -d.b[ i ] } );
+            var bearing = -d.b[ i ] - heading + 180;
+            lidarData.add( { r: d.r[ i ] / 100, b: bearing } );
           }
 
           lidarView.draw( lidarData.data );
 
           // Update indicators
-          d3.select( '.row2.col1' ).datum( { heading: -d.yaw[0] * 180 / Math.PI + 90 } ).call( compass );
-          d3.select( '.row2.col2' ).datum( { tilt: d.roll[0] * 180 / Math.PI } ).call( rollIndicator );
-          d3.select( '.row2.col3' ).datum( { tilt: -d.pitch[0] * 180 / Math.PI } ).call( pitchIndicator );
+          d3.select( '.row2.col1' ).datum( { heading: heading } ).call( compass );
+          d3.select( '.row2.col2' ).datum( { tilt: -d.roll[0] } ).call( rollIndicator );
+          d3.select( '.row2.col3' ).datum( { tilt: d.pitch[0] } ).call( pitchIndicator );
           d3.select( '.row2.col4' ).datum( { angle: d.sa[0] } ).call( steerIndicator );
 
           // Update calibration status
