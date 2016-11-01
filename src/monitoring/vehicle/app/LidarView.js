@@ -126,9 +126,7 @@ define( function( require ) {
 
       // Dynamically rescale the radial axis
       rScale
-        .domain( [ 0, 1.1 * d3.max( data, function( d ) {
-          return d.r;
-        } ) ] )
+        .domain( [ 0, Math.max(10.5, 1.1 * d3.max( data, function( d ) { return d.r; } ) ) ] )
         .range( [ 0, outerRadius ] );
 
       origin.selectAll( '.lidar-scale' )
