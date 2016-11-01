@@ -119,7 +119,7 @@ function send_output(d, destination::String)
 end
 
 function send_output(d, client::WebSockets.WebSocket)
-    send_json("quaternions", d, client)
+    send_json("vehicle-state", d, client)
 end
 
 """
@@ -157,6 +157,11 @@ function process_stream(source, fields, destination, buffered_fields=[], buffer_
                 # Get quaternion from dict, then Euler/Tait-Bryan angles.
                 q = qnorm(d)
                 roll, pitch, yaw = to_euler(q)
+
+                roll = round(roll*180/pi, 2)
+                pitch = round(pitch*180/pi, 2)
+                yaw = round(yaw*180/pi, 2)
+
                 output["roll"] = [roll]
                 output["pitch"] = [pitch]
                 output["yaw"] = [yaw]
