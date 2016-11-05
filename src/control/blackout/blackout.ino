@@ -1,7 +1,7 @@
 //
 // Rolling Blackout vehicle control firmware written for Teensy 3.2
 //
-
+#include "PIDControl.h"
 #include "NAxisMotion.h"
 #include <Wire.h>
 
@@ -22,9 +22,31 @@
 // Global constants
 const unsigned int UPDATE_INTERVAL = 20; // Time between communication updates (ms)
 const unsigned int LIDAR_PERIOD = 1346;  // Encoder pulses per rotation
-const unsigned int ADC_FULL_LEFT  = 430; // ADC reading at about -45 degrees
-const unsigned int ADC_FULL_RIGHT = 830; // and at +45 degrees
+const unsigned int ADC_FULL_LEFT  = 430; // ADC reading at left steer angle limit
+const unsigned int ADC_FULL_RIGHT = 830; // and at right limit
+const float DEG_FULL_LEFT  = -27;        // Angle in degrees at left and right
+const float DEG_FULL_RIGHT =  27;        // limits (ints for map())
 const float METERS_PER_TICK = 1.07/700;  // Wheel circumference/(ticks per rev)
+
+float kp = 2, ki = 100, kd = 0;
+unsigned long pidTimeStep = 20; // ms
+
+// Center steering position - PID controller uses normalized values in [0,1]
+float initialSteerSetpoint = (ADC_FULL_LEFT+ADC_FULL_RIGHT)/2/1023;
+
+float adcToDegrees( int adc )
+{
+  return (float)map(adc, ADC_FULL_LEFT, ADC_FULL_RIGHT, 1000*DEG_FULL_LEFT, 1000*DEG_FULL_RIGHT)/1000;
+}
+
+float degreesToSetpoint(float angleDeg)
+{
+  return (float)map(angleDeg, DEG_FULL_LEFT, DEG_FULL_RIGHT, 0, 10000)/10000;
+}
+
+PIDControl steerPid(kp, ki, kd, initialSteerSetpoint, pidTimeStep);
+
+String cmd = "";
 
 // Bosch BNO055 absolute orientation sensor
 NAxisMotion imu;
@@ -66,6 +88,11 @@ void setup()
   pinMode(ODO_ENC_PIN_A, INPUT);
   pinMode(ODO_ENC_PIN_B, INPUT);
   pinMode(LED_PIN, OUTPUT);
+
+  // PID setpoint input is a float value in [0,1] (scaled ADC value or angle)
+  // PID output is in [-1,1] and must be mapped to duty cycle and DIR pin level
+  steerPid.minOutput = -1; // Full left
+  steerPid.maxOutput = +1; // Full right
 
   // I2C and IMU sensor initialization
   I2C.begin();
@@ -149,6 +176,49 @@ void printLidar()
   Serial.print(lidarAngle);
 }
 
+void handleByte(byte b)
+{
+  // kp
+  if (b == 'p') // increase kp
+    kp += 0.01;
+  if (b == 'l') // decrease kp
+    kp -= 0.01;
+
+  // ki
+  if (b == 'i') // increase ki
+    ki += 0.1;
+  if (b == 'k') // decrease ki
+    ki -= 0.1;
+
+  // kd
+  if (b == 'd') // increase kd
+    kd += 0.001;
+  if (b == 'c') // decrease kd
+    kd -= 0.001;
+
+  if (b == '\r' || b == '\n')
+  {
+    // Assume here that cmd is an angle setpoint in degrees.
+    // Convert to a fraction in [0,1] for PID input
+    float setPoint = degreesToSetpoint((float)cmd.toInt());
+    steerPid.setpoint = constrain(setPoint, steerPid.minOutput, steerPid.maxOutput);
+    // pid.setpoint = constrain(cmd.toInt(), 0, 1023);
+    Serial.print("\n\rsetpoint: ");
+    Serial.println(steerPid.setpoint);
+    cmd = "";
+  }
+  if (isDigit(b))
+  {
+    byte digit = b - 48;
+    Serial.print(digit);
+    cmd += digit;
+  }
+  else
+  {
+    steerPid.setPID(kp, ki, kd);
+  }
+}
+
 void loop()
 {
   // Send out vehicle state every UPDATE_INTERVAL milliseconds
@@ -177,9 +247,8 @@ void loop()
   // Read potentiometer and update steering angle
   ewma(analogRead(STEER_ANGLE_PIN), adc16);
 
-  // Get degrees from ADC reading. Since map() uses integer math, expand the
-  // range x100 then divide to improve precision.
-  steeringAngle = (float)map(adc16 >> 4, ADC_FULL_LEFT, ADC_FULL_RIGHT, -2700, 2700)/100;
+  steeringAngle = adcToDegrees(adc16 >> 4);
+  // steeringAngle = (float)map(adc16 >> 4, ADC_FULL_LEFT, ADC_FULL_RIGHT, -2700, 2700)/100;
 }
 
 // ISRs for odometer decoder readout
