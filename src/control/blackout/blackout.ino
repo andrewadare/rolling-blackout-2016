@@ -22,8 +22,9 @@
 // Global constants
 const unsigned int UPDATE_INTERVAL = 20; // Time between communication updates (ms)
 const unsigned int LIDAR_PERIOD = 1346;  // Encoder pulses per rotation
-const unsigned int ADC_FULL_LEFT  = 300; // 10-bit ADC value at -45 degrees TODO: refine
-const unsigned int ADC_FULL_RIGHT = 900; // Same; +45 degrees TODO: refine
+const unsigned int ADC_FULL_LEFT  = 430; // ADC reading at about -45 degrees
+const unsigned int ADC_FULL_RIGHT = 830; // and at +45 degrees
+const float METERS_PER_TICK = 1.07/700;  // Wheel circumference/(ticks per rev)
 
 // Bosch BNO055 absolute orientation sensor
 NAxisMotion imu;
@@ -46,9 +47,12 @@ unsigned int lidarRange = 0; // cm
 unsigned int lidarAngle = 0; // deg
 long odometerValue = 0;
 
+// Distance traveled by vehicle in meters
+float odometerDistance = 0;
+
 // Steering angle and limits. Sense is positive clockwise to match IMU heading.
 unsigned int adc16 = 0; // 16*ADC value from turnpot
-int steeringAngle = 0;  // Front wheel angle (deg)
+float steeringAngle = 0;  // Front wheel angle (deg)
 
 void setup()
 {
@@ -156,8 +160,7 @@ void loop()
     noInterrupts();
     odometerValue = odoTicks;
     interrupts();
-    // TODO: convert odometerValue to distance traveled in cm.
-    // Need to measure wheel circumference
+    odometerDistance = odometerValue*METERS_PER_TICK;
 
     Serial.print("t:");
     Serial.print(millis());
@@ -166,14 +169,17 @@ void loop()
     Serial.print(",sa:");
     Serial.print(steeringAngle);
     Serial.print(",odo:");
-    Serial.print(odometerValue);
+    Serial.print(odometerDistance);
     printLidar();
     Serial.println();
   }
 
   // Read potentiometer and update steering angle
   ewma(analogRead(STEER_ANGLE_PIN), adc16);
-  steeringAngle = map(adc16 >> 4, ADC_FULL_LEFT, ADC_FULL_RIGHT, -45, 45);
+
+  // Get degrees from ADC reading. Since map() uses integer math, expand the
+  // range x100 then divide to improve precision.
+  steeringAngle = (float)map(adc16 >> 4, ADC_FULL_LEFT, ADC_FULL_RIGHT, -2700, 2700)/100;
 }
 
 // ISRs for odometer decoder readout
