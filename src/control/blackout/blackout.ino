@@ -25,28 +25,52 @@ const unsigned int LIDAR_PERIOD = 1346;  // Encoder pulses per rotation
 const unsigned int ADC_FULL_LEFT  = 430; // ADC reading at left steer angle limit
 const unsigned int ADC_FULL_RIGHT = 830; // and at right limit
 const float DEG_FULL_LEFT  = -27;        // Angle in degrees at left and right
-const float DEG_FULL_RIGHT =  27;        // limits (ints for map())
+const float DEG_FULL_RIGHT =  27;        // limits
 const float METERS_PER_TICK = 1.07/700;  // Wheel circumference/(ticks per rev)
+const float STEER_PID_DEADBAND = 0.01;
 
 float kp = 2, ki = 100, kd = 0;
 unsigned long pidTimeStep = 20; // ms
 
-// Center steering position - PID controller uses normalized values in [0,1]
-float initialSteerSetpoint = (ADC_FULL_LEFT+ADC_FULL_RIGHT)/2/1023;
+// Center steering position in "PID units" (i.e. scaled to the [-1,1] interval)
+float initialSteerSetpoint = 0;
 
-float adcToDegrees( int adc )
+// From the PID output value (which is in the -1 to +1 range), set the direction
+// and the 8-bit PWM duty cycle for the steering motor.
+void updateSteering(float pidValue)
 {
-  return (float)map(adc, ADC_FULL_LEFT, ADC_FULL_RIGHT, 1000*DEG_FULL_LEFT, 1000*DEG_FULL_RIGHT)/1000;
+  int dutyCycle = map(1e6*fabs(pidValue), 0, 1e6, 0, 255);
+  dutyCycle = constrain(dutyCycle, 0, 255);
+
+  if (pidValue > 0)
+    Serial.print("\r\nSetting to +, ");
+  else
+    Serial.println("\r\nSetting to -, ");
+  Serial.println(dutyCycle);
+#if 0
+  digitalWrite(DIR_PIN, pidValue > 0 ? HIGH : LOW);
+  analogWrite(PWM_PIN, dutyCycle);
+#endif
 }
 
-float degreesToSetpoint(float angleDeg)
+float adcToDegrees(int adc)
 {
-  return (float)map(angleDeg, DEG_FULL_LEFT, DEG_FULL_RIGHT, 0, 10000)/10000;
+  return (float)map(adc, ADC_FULL_LEFT, ADC_FULL_RIGHT, 1e6*DEG_FULL_LEFT, 1e6*DEG_FULL_RIGHT)/1e6;
+}
+
+// Convert steer angle in degrees to PID units in [-1,1]
+float degreesToPidUnits(float angle)
+{
+  return (float)map(angle, DEG_FULL_LEFT, DEG_FULL_RIGHT, -1e6, 1e6)/1e6;
+}
+
+// Convert steering readout in ADC units to PID units in [-1,1]
+float adcToPidUnits(int adc)
+{
+  return (float)map(adc, ADC_FULL_LEFT, ADC_FULL_RIGHT, -1e6, 1e6)/1e6;
 }
 
 PIDControl steerPid(kp, ki, kd, initialSteerSetpoint, pidTimeStep);
-
-String cmd = "";
 
 // Bosch BNO055 absolute orientation sensor
 NAxisMotion imu;
@@ -76,6 +100,8 @@ float odometerDistance = 0;
 unsigned int adc16 = 0; // 16*ADC value from turnpot
 float steeringAngle = 0;  // Front wheel angle (deg)
 
+String cmd = "";
+
 void setup()
 {
   pinMode(STEER_DIR_PIN, OUTPUT);
@@ -89,10 +115,8 @@ void setup()
   pinMode(ODO_ENC_PIN_B, INPUT);
   pinMode(LED_PIN, OUTPUT);
 
-  // PID setpoint input is a float value in [0,1] (scaled ADC value or angle)
-  // PID output is in [-1,1] and must be mapped to duty cycle and DIR pin level
-  steerPid.minOutput = -1; // Full left
-  steerPid.maxOutput = +1; // Full right
+  steerPid.minOutput = -1; // Full speed left
+  steerPid.maxOutput = +1; // Full speed right
 
   // I2C and IMU sensor initialization
   I2C.begin();
@@ -178,40 +202,41 @@ void printLidar()
 
 void handleByte(byte b)
 {
+  if (b == '-')
+    cmd = "-";
+
   // kp
-  if (b == 'p') // increase kp
+  else if (b == 'p') // increase kp
     kp += 0.01;
-  if (b == 'l') // decrease kp
+  else if (b == 'l') // decrease kp
     kp -= 0.01;
 
   // ki
-  if (b == 'i') // increase ki
+  else if (b == 'i') // increase ki
     ki += 0.1;
-  if (b == 'k') // decrease ki
+  else if (b == 'k') // decrease ki
     ki -= 0.1;
 
   // kd
-  if (b == 'd') // increase kd
+  else if (b == 'd') // increase kd
     kd += 0.001;
-  if (b == 'c') // decrease kd
+  else if (b == 'c') // decrease kd
     kd -= 0.001;
 
-  if (b == '\r' || b == '\n')
-  {
-    // Assume here that cmd is an angle setpoint in degrees.
-    // Convert to a fraction in [0,1] for PID input
-    float setPoint = degreesToSetpoint((float)cmd.toInt());
-    steerPid.setpoint = constrain(setPoint, steerPid.minOutput, steerPid.maxOutput);
-    // pid.setpoint = constrain(cmd.toInt(), 0, 1023);
-    Serial.print("\n\rsetpoint: ");
-    Serial.println(steerPid.setpoint);
-    cmd = "";
-  }
-  if (isDigit(b))
+  else if (b == '.')
+    cmd += b;
+  else if (isDigit(b))
   {
     byte digit = b - 48;
-    Serial.print(digit);
     cmd += digit;
+  }
+  else if (b == '\r' || b == '\n')
+  {
+    // Assume here that cmd is a signed angle setpoint in degrees.
+    // Convert to a fraction in [0,1] for PID input
+    float setPoint = degreesToPidUnits(cmd.toFloat());
+    steerPid.setpoint = constrain(setPoint, steerPid.minOutput, steerPid.maxOutput);
+    cmd = "";
   }
   else
   {
@@ -242,13 +267,22 @@ void loop()
     Serial.print(odometerDistance);
     printLidar();
     Serial.println();
+
+    float input = adcToPidUnits(adc16 >> 4);
+    steerPid.update(input, STEER_PID_DEADBAND);
+    updateSteering(steerPid.output);
+  }
+
+  if (Serial.available() > 0)
+  {
+    byte rxByte = Serial.read();
+    handleByte(rxByte);
   }
 
   // Read potentiometer and update steering angle
   ewma(analogRead(STEER_ANGLE_PIN), adc16);
 
   steeringAngle = adcToDegrees(adc16 >> 4);
-  // steeringAngle = (float)map(adc16 >> 4, ADC_FULL_LEFT, ADC_FULL_RIGHT, -2700, 2700)/100;
 }
 
 // ISRs for odometer decoder readout
