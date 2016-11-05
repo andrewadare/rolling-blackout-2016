@@ -1,8 +1,11 @@
+// This demo compares a direct ADC reading to a smoothed value using an
+// exponentialy-weighted moving average with integer math
 
-#define POT_PIN    A0   // Pin to read voltage from potentiometer
+#define POT_PIN A0 // Pin to read voltage from potentiometer
 
-// Digitized reading from potentiometer (running average - see ewma() below)
-unsigned int angleADC = 0;
+// Digitized reading from potentiometer and running average
+unsigned int adcRaw = 0;
+unsigned int adc16 = 0;
 
 // Time of update step and length of update interval in ms
 unsigned long timeMarker = 0;
@@ -29,13 +32,16 @@ void setup()
 
 void loop()
 {
-
   if (millis() - timeMarker >= dt)
   {
     timeMarker = millis();
-    Serial.print("adc: ");
-    Serial.println(angleADC >> 4);
+    Serial.print(timeMarker);
+    Serial.print(" ");
+    Serial.print(adcRaw);         // Snapshot of latest measurement
+    Serial.print(" ");
+    Serial.println(adc16 >> 4);   // Smoothed value
   }
 
-  ewma(analogRead(POT_PIN), angleADC);
+  adcRaw = analogRead(POT_PIN);
+  ewma(adcRaw, adc16);
 }

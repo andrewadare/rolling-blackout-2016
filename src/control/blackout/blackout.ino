@@ -7,10 +7,6 @@
 
 // Pin definitions
 // A4, A5 occupied for I2C.
-#define STEER_DIR_PIN 2
-#define STEER_PWM_PIN 3
-#define THROTTLE_DIR_PIN 5
-#define THROTTLE_PWM_PIN 6
 #define LIDAR_ENC_PIN 7 // Lidar encoder ch. A (purple)
 #define LIDAR_REV_PIN 8 // Photointerrupter (gray)
 #define LIDAR_PWM_PIN 9 // Input w/580 ohm pulldown (yellow).
@@ -18,6 +14,10 @@
 #define ODO_ENC_PIN_B 12
 #define LED_PIN 13
 #define STEER_ANGLE_PIN A0
+#define STEER_DIR_PIN 20 // HIGH: right, LOW: left.
+#define STEER_PWM_PIN 21
+#define THROTTLE_DIR_PIN 22
+#define THROTTLE_PWM_PIN 23
 
 // Global constants
 const unsigned int UPDATE_INTERVAL = 20; // Time between communication updates (ms)
