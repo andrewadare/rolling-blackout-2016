@@ -16,8 +16,8 @@
 #define ODO_ENC_PIN_B 12
 #define LED_PIN 13
 #define STEER_ANGLE_PIN A0
-#define STEER_DIR_PIN 20 // HIGH: right, LOW: left.
-#define STEER_PWM_PIN 21
+#define STEER_DIR_PIN 20 // HIGH: right, LOW: left (white)
+#define STEER_PWM_PIN 21 // (gray)
 #define THROTTLE_DIR_PIN 22
 #define THROTTLE_PWM_PIN 23
 
