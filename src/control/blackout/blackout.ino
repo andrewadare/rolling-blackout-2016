@@ -5,6 +5,8 @@
 #include "NAxisMotion.h"
 #include <Wire.h>
 
+#define DEBUG 0
+
 // Pin definitions
 // A4, A5 occupied for I2C.
 #define LIDAR_ENC_PIN 7 // Lidar encoder ch. A (purple)
@@ -20,54 +22,37 @@
 #define THROTTLE_PWM_PIN 23
 
 // Global constants
-const unsigned int UPDATE_INTERVAL = 20; // Time between communication updates (ms)
-const unsigned int LIDAR_PERIOD = 1346;  // Encoder pulses per rotation
-const unsigned int ADC_FULL_LEFT  = 430; // ADC reading at left steer angle limit
-const unsigned int ADC_FULL_RIGHT = 830; // and at right limit
-const float DEG_FULL_LEFT  = -27;        // Angle in degrees at left and right
-const float DEG_FULL_RIGHT =  27;        // limits
-const float METERS_PER_TICK = 1.07/700;  // Wheel circumference/(ticks per rev)
+const int UPDATE_INTERVAL = 20;         // Time between communication updates (ms)
+const int LIDAR_PERIOD = 1346;          // Encoder pulses per rotation
+const int ADC_FULL_LEFT  = 430;         // ADC reading at left steer angle limit
+const int ADC_FULL_RIGHT = 830;         // and at right limit
+const float DEG_FULL_LEFT  = -27.0;     // Angle in degrees at left and right
+const float DEG_FULL_RIGHT =  27.0;     // limits
+const float METERS_PER_TICK = 1.07/700; // Wheel circumference/(ticks per rev)
 const float STEER_PID_DEADBAND = 0.01;
 
-float kp = 2, ki = 100, kd = 0;
+// PID parameters
+float kp = 1, ki = 0, kd = 0;
 unsigned long pidTimeStep = 20; // ms
 
 // Center steering position in "PID units" (i.e. scaled to the [-1,1] interval)
 float initialSteerSetpoint = 0;
 
-// From the PID output value (which is in the -1 to +1 range), set the direction
-// and the 8-bit PWM duty cycle for the steering motor.
-void updateSteering(float pidValue)
-{
-  int dutyCycle = map(1e6*fabs(pidValue), 0, 1e6, 0, 255);
-  dutyCycle = constrain(dutyCycle, 0, 255);
-
-  if (pidValue > 0)
-    Serial.print("\r\nSetting to +, ");
-  else
-    Serial.println("\r\nSetting to -, ");
-  Serial.println(dutyCycle);
-#if 0
-  digitalWrite(DIR_PIN, pidValue > 0 ? HIGH : LOW);
-  analogWrite(PWM_PIN, dutyCycle);
-#endif
-}
-
 float adcToDegrees(int adc)
 {
-  return (float)map(adc, ADC_FULL_LEFT, ADC_FULL_RIGHT, 1e6*DEG_FULL_LEFT, 1e6*DEG_FULL_RIGHT)/1e6;
-}
-
-// Convert steer angle in degrees to PID units in [-1,1]
-float degreesToPidUnits(float angle)
-{
-  return (float)map(angle, DEG_FULL_LEFT, DEG_FULL_RIGHT, -1e6, 1e6)/1e6;
+  return (float)map(adc, ADC_FULL_LEFT, ADC_FULL_RIGHT, 100*DEG_FULL_LEFT, 100*DEG_FULL_RIGHT)/100;
 }
 
 // Convert steering readout in ADC units to PID units in [-1,1]
 float adcToPidUnits(int adc)
 {
-  return (float)map(adc, ADC_FULL_LEFT, ADC_FULL_RIGHT, -1e6, 1e6)/1e6;
+  return (float)map(adc, ADC_FULL_LEFT, ADC_FULL_RIGHT, -1000, 1000)/1000;
+}
+
+// Convert steer angle in degrees to PID units in [-1,1]
+float degreesToPidUnits(float angle)
+{
+  return (float)map(1000*angle, 1000*DEG_FULL_LEFT, 1000*DEG_FULL_RIGHT, -1000, 1000)/1000;
 }
 
 PIDControl steerPid(kp, ki, kd, initialSteerSetpoint, pidTimeStep);
@@ -97,10 +82,30 @@ long odometerValue = 0;
 float odometerDistance = 0;
 
 // Steering angle and limits. Sense is positive clockwise to match IMU heading.
-unsigned int adc16 = 0; // 16*ADC value from turnpot
+unsigned int adc16 = 0;  // 16*ADC value from turnpot
 float steeringAngle = 0;  // Front wheel angle (deg)
 
 String cmd = "";
+
+// From the PID output value (which is in the -1 to +1 range), set the direction
+// and the 8-bit PWM duty cycle for the steering motor.
+void updateSteering(float pidValue)
+{
+  int dutyCycle = map(1e6*fabs(pidValue), 0, 1e6, 0, 255);
+  dutyCycle = constrain(dutyCycle, 0, 255);
+
+#if DEBUG
+  Serial.print(degreesToPidUnits(steeringAngle));
+  if (pidValue > 0)
+    Serial.print(" Set +");
+  else
+    Serial.print(" Set -");
+  Serial.println(dutyCycle);
+#endif
+
+  digitalWrite(STEER_DIR_PIN, pidValue > 0 ? HIGH : LOW);
+  analogWrite(STEER_PWM_PIN, dutyCycle);
+}
 
 void setup()
 {
