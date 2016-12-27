@@ -91,6 +91,7 @@ String cmd = "";
 // and the 8-bit PWM duty cycle for the steering motor.
 void updateSteering(float pidValue)
 {
+  // TODO: implement STEER_PID_DEADBAND here
   int dutyCycle = map(1e6*fabs(pidValue), 0, 1e6, 0, 255);
   dutyCycle = constrain(dutyCycle, 0, 255);
 
@@ -274,7 +275,7 @@ void loop()
     Serial.println();
 
     float input = adcToPidUnits(adc16 >> 4);
-    steerPid.update(input, STEER_PID_DEADBAND);
+    steerPid.update(input, millis());
     updateSteering(steerPid.output);
   }
 
